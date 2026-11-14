@@ -6,12 +6,12 @@ Implement incrementally on feature/teknosoup-foundation. Preserve existing Money
 ## M0 — Repository and contract audit
 - [x] Confirm repository, default branch and write access.
 - [x] Inspect root Docker Compose, dependency manifest, FastAPI router and existing video API conventions.
-- [ ] Inspect task manager, video project renderer, voice service, storage layout and test conventions before implementation.
-- [ ] Record compatibility constraints and baseline test commands.
+- [ ] Complete audit of task manager, renderer, voice service and storage before worker/database design.
+- [ ] Record baseline test commands and run the test suite in a local checkout.
 
 ## M1 — Foundation
-- [ ] Add TeknoSoup domain package and route registration without changing existing endpoints.
-- [ ] Define configuration for VoiceStudio URL, feature flags, timeouts and media root.
+- [x] Add initial TeknoSoup package and register VoiceStudio routes without changing existing endpoints.
+- [x] Define VoiceStudio URL, TTS/STT feature flags and request timeout through environment configuration. Media-root configuration remains open.
 - [ ] Add PostgreSQL integration and migrations using the repository's established dependency/migration conventions (audit before choosing).
 - [ ] Add project CRUD and project settings API.
 - [ ] Scaffold Next.js dashboard with server-side API proxy; do not expose internal service URLs or keys.
@@ -25,7 +25,7 @@ Acceptance:
 
 ## M2 — Script and Voice Producer
 - [ ] Model script versions, chapters and stable sentence identifiers.
-- [ ] Implement VoiceStudio HTTP adapter and profile discovery.
+- [x] Implement initial VoiceStudio HTTP adapter, health/profile discovery, WAV synthesis and STT request methods. Worker orchestration and persistence remain open.
 - [ ] Implement sentence-level WAV generation and validation.
 - [ ] Persist voice manifest with chapter, sentence ID, sequence, source/spoken text, voice profile, script version, path, duration, content hash and status.
 - [ ] Implement selective regeneration based on dependency fingerprint.
@@ -81,3 +81,10 @@ Create a 15–25 minute cartoon-style video project about DNS with multiple chap
 - Do not make VoiceStudio a hard dependency for existing MoneyPrinterTurbo workflows; gate it behind configuration and feature flags.
 - Add tests alongside each implementation slice.
 - Keep publishing disabled until a separate approval workflow is designed and accepted.
+
+
+## Current implementation slice
+- Added architecture and implementation-plan documents.
+- Added a feature-flagged VoiceStudio adapter and read-only health/profile API endpoints.
+- Added adapter unit tests; they have not yet been executed in a local checkout.
+- PostgreSQL, migrations, project CRUD, Next.js dashboard, dedicated workers, sentence manifest persistence and Docker Compose changes are not implemented yet.
