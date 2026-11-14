@@ -172,7 +172,7 @@ class VideoParams(BaseModel):
 class SubtitleRequest(BaseModel):
     video_script: str
     video_language: Optional[str] = ""
-    voice_name: Optional[str] = "zh-CN-XiaoxiaoNeural-Female"
+    voice_name: Optional[str] = "voicestudio:default"
     voice_volume: Optional[float] = Field(default=1.0, allow_inf_nan=False)
     voice_rate: Optional[float] = Field(default=1.2, allow_inf_nan=False)
     bgm_type: Optional[str] = "random"
@@ -199,7 +199,7 @@ class SubtitleRequest(BaseModel):
 class AudioRequest(BaseModel):
     video_script: str
     video_language: Optional[str] = ""
-    voice_name: Optional[str] = "zh-CN-XiaoxiaoNeural-Female"
+    voice_name: Optional[str] = "voicestudio:default"
     voice_volume: Optional[float] = Field(default=1.0, allow_inf_nan=False)
     voice_rate: Optional[float] = Field(default=1.2, allow_inf_nan=False)
     bgm_type: Optional[str] = "random"
@@ -267,10 +267,10 @@ class TaskVideoRequest(VideoParams, BaseModel):
     video_clip_duration: int = Field(default=5, ge=1, le=15)
     n_threads: Optional[int] = Field(default=2, ge=1, le=16)
 
-    # A request without voice_name uses the same Edge voice as /audio and
-    # /subtitle. Edge TTS accepts no empty voice, so with the empty default
-    # of VideoParams the task failed at the audio stage, after the LLM calls.
-    voice_name: Optional[str] = "zh-CN-XiaoxiaoNeural-Female"
+    # Permintaan tanpa voice_name memakai suara VoiceStudio yang sama dengan /audio
+    # dan /subtitle. Suara kosong tidak diterima, sehingga dengan default kosong
+    # pada VideoParams tugas akan gagal di tahap audio, setelah panggilan LLM.
+    voice_name: Optional[str] = "voicestudio:default"
 
 
 class TaskQueryRequest(BaseModel):

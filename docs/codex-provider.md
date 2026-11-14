@@ -1,145 +1,143 @@
 # OpenAI - Codex
 
-Select **OpenAI - Codex** in the LLM provider settings and choose **Connect ChatGPT
-with a code**. Open the OpenAI authorization page, enter the displayed code and
-approve access. The UI polls for confirmation automatically. Device-code sign-in
-must be enabled for the account. Use **Test LLM Connection** after connecting and
-selecting a model.
+Pilih **OpenAI - Codex** di pengaturan penyedia LLM dan pilih **Hubungkan ChatGPT
+dengan kode**. Buka halaman otorisasi OpenAI, masukkan kode yang ditampilkan, lalu
+setujui akses. Antarmuka memeriksa konfirmasi secara otomatis. Login kode perangkat
+harus diaktifkan untuk akun tersebut. Gunakan **Uji Koneksi LLM** setelah terhubung dan
+memilih model.
 
-This provider uses the Codex allowance of the connected ChatGPT subscription for
-text and optional image generation. No API key, Codex CLI installation or shared
-CLI credentials are needed. Voice and video rendering retain their existing providers.
+Penyedia ini memakai kuota Codex dari langganan ChatGPT yang terhubung untuk
+pembuatan teks dan gambar (opsional). Tidak perlu kunci API, pemasangan Codex CLI, maupun
+kredensial CLI bersama. Render suara dan video tetap memakai penyedia yang sudah ada.
 
-## Image material source
+## Sumber materi gambar
 
-Choose **OpenAI - Codex Images** under **AI Image** in Video Source. In Settings,
-the AI Image Generation APIs section has a separate Responses model selector and
-request timeout (`codex_image_model_name`, `codex_image_timeout`). There is no
-default model. The catalog lists candidates, not account-specific image access;
-the selected Responses model must support the image-generation tool for the account.
-The tool chooses its image engine; do not substitute a GPT Image engine name for
-the Responses model ID.
+Pilih **OpenAI - Codex Images** di bawah **AI Image** pada Sumber Video. Di Pengaturan,
+bagian AI Image Generation APIs memiliki pemilih model Responses dan batas waktu
+permintaan yang terpisah (`codex_image_model_name`, `codex_image_timeout`). Tidak ada
+model default. Katalog hanya mendaftar kandidat, bukan akses gambar khusus akun;
+model Responses yang dipilih harus mendukung alat pembuatan gambar untuk akun tersebut.
+Alat itu yang memilih mesin gambarnya; jangan mengganti ID model Responses dengan nama mesin GPT Image.
 
-Text and images share one ChatGPT account and one device-code login. Connecting
-from the image settings also connects the LLM, and an existing LLM session is
-reused automatically. Disconnecting removes the shared session for both. The
-LLM provider and its model remain independent of the image source and its model.
+Teks dan gambar berbagi satu akun ChatGPT dan satu login kode perangkat. Menghubungkan
+dari pengaturan gambar juga menghubungkan LLM, dan sesi LLM yang sudah ada dipakai
+ulang secara otomatis. Memutuskan koneksi menghapus sesi bersama untuk keduanya. Penyedia
+LLM dan modelnya tetap independen dari sumber gambar dan modelnya.
 
-Codex produces PNG material through the existing image-to-video path, including
-the existing static/zoom effects and duration handling. It does not change script,
-keyword or narration generation. Each image uses the account's allowance. If a
-request's result is uncertain, invalid, or cannot be saved/rendered, the job stops
-without automatically generating a replacement. Only an explicit 401 permits a
-single coordinated token refresh and retry. A logout or account switch invalidates
-queued and in-flight image work from the previous authorization.
+Codex menghasilkan materi PNG lewat jalur gambar-ke-video yang sudah ada, termasuk
+efek statis/zoom dan penanganan durasi yang ada. Ini tidak mengubah pembuatan naskah,
+kata kunci, atau narasi. Setiap gambar memakai kuota akun. Jika hasil sebuah
+permintaan tidak pasti, tidak valid, atau tidak dapat disimpan/dirender, pekerjaan berhenti
+tanpa otomatis membuat pengganti. Hanya HTTP 401 yang eksplisit yang mengizinkan
+satu kali penyegaran token terkoordinasi dan percobaan ulang. Logout atau pergantian akun membatalkan
+pekerjaan gambar yang antre dan sedang berjalan dari otorisasi sebelumnya.
 
-## Models
+## Model
 
-The selector fetches `https://models.dev/api.json` and applies the same compatibility
-rules as [Jarvys](https://github.com/Hackerprod/Jarvys). The public catalog is not an
-account-specific entitlement check. There is no fixed default model: choose an ID
-from the list. Model IDs are preserved exactly when sending requests.
+Pemilih mengambil `https://models.dev/api.json` dan menerapkan aturan kompatibilitas
+yang sama dengan [Jarvys](https://github.com/Hackerprod/Jarvys). Katalog publik ini bukan
+pemeriksaan hak akses khusus akun. Tidak ada model default tetap: pilih ID
+dari daftar. ID model dipertahankan persis saat mengirim permintaan.
 
-The catalog is cached locally for 24 hours. **Refresh models** bypasses the cache.
-If refreshing fails, the last valid catalog remains available. Without a cache,
-the UI allows entering a model ID manually. A previously selected model that is
-absent from a refreshed catalog is preserved instead of silently switching models.
-Catalog requests contain no ChatGPT credentials.
+Katalog di-cache secara lokal selama 24 jam. **Refresh models** melewati cache.
+Jika penyegaran gagal, katalog valid terakhir tetap tersedia. Tanpa cache,
+antarmuka mengizinkan memasukkan ID model secara manual. Model yang sebelumnya dipilih
+tetapi tidak ada di katalog yang disegarkan akan dipertahankan, bukan diam-diam berganti model.
+Permintaan katalog tidak membawa kredensial ChatGPT.
 
-## Credentials and errors
+## Kredensial dan error
 
-Credentials are stored in `storage/auth/openai_codex.bin`, outside Git and the
-configuration file. Windows uses user-scoped DPAPI encryption; other systems use
-a private file. Tokens are refreshed under a lock to avoid concurrent reuse of
-rotating refresh tokens. The provider never imports or changes the credentials
-used by the Codex desktop app or CLI. **Disconnect ChatGPT** removes this app's
-local credentials; it does not revoke other sessions.
+Kredensial disimpan di `storage/auth/openai_codex.bin`, di luar Git dan berkas
+konfigurasi. Windows memakai enkripsi DPAPI per pengguna; sistem lain memakai
+berkas privat. Token disegarkan dengan kunci agar token refresh yang berotasi
+tidak dipakai bersamaan. Penyedia ini tidak pernah mengimpor atau mengubah kredensial
+yang dipakai aplikasi desktop atau CLI Codex. **Putuskan ChatGPT** menghapus
+kredensial lokal aplikasi ini; sesi lain tidak dicabut.
 
-Image work is bound to the submitting account and a persistent login revision.
-Processes sharing the runtime directory coordinate credential changes and refresh
-with a file lock. Disconnecting or signing in again invalidates older image work,
-including a new login to the same account; normal refresh preserves the revision.
-Existing credentials are migrated atomically without requiring another login.
+Pekerjaan gambar terikat pada akun pengirim dan revisi login yang persisten.
+Proses yang berbagi direktori runtime mengoordinasikan perubahan dan penyegaran
+kredensial dengan file lock. Memutuskan koneksi atau login ulang membatalkan pekerjaan gambar yang lebih lama,
+termasuk login baru ke akun yang sama; penyegaran normal mempertahankan revisinya.
+Kredensial yang ada dimigrasikan secara atomik tanpa perlu login lagi.
 
-Requests are restricted to the OpenAI authorization and Codex Responses endpoints,
-without following redirects. Only completed Responses output is accepted; partial
-streams and raw provider error bodies are not exposed as generated text. A 401
-triggers at most one token refresh and retry. Authentication and model-picker
-controls and messages use the application's existing localization system in all
-14 supported languages. Extended provider setup tips follow the project's Chinese
-and English convention.
+Permintaan dibatasi pada endpoint otorisasi OpenAI dan Codex Responses,
+tanpa mengikuti redirect. Hanya keluaran Responses yang selesai yang diterima; stream
+parsial dan isi error mentah dari penyedia tidak ditampilkan sebagai teks hasil. Respons 401
+memicu paling banyak satu kali penyegaran token dan percobaan ulang. Kontrol dan pesan
+autentikasi serta pemilih model memakai sistem lokalisasi aplikasi yang ada dalam
+14 bahasa yang didukung. Tips pengaturan penyedia yang diperluas mengikuti konvensi proyek
+berbahasa Mandarin dan Inggris.
 
-The device-code and Responses protocol was inspected in Jarvys and independently
-implemented in Python. See also [OpenAI authentication documentation](https://learn.chatgpt.com/docs/auth).
+Protokol kode perangkat dan Responses diperiksa di Jarvys dan diimplementasikan
+secara independen di Python. Lihat juga [dokumentasi autentikasi OpenAI](https://learn.chatgpt.com/docs/auth).
 
-## Validation
+## Validasi
 
-Tests cover pending, cancelled and expired sign-in, encrypted Windows persistence,
-concurrent token refresh, retry after 401, complete and incomplete SSE responses,
-catalog filtering, cache persistence, refresh and outage recovery, and translated
-Streamlit controls. Real-account sign-in was also confirmed by the user during
-local testing. Automated tests use synthetic credentials.
+Test mencakup login yang tertunda, dibatalkan, dan kedaluwarsa, penyimpanan Windows terenkripsi,
+penyegaran token bersamaan, percobaan ulang setelah 401, respons SSE lengkap dan tidak lengkap,
+penyaringan katalog, persistensi cache, pemulihan saat penyegaran dan gangguan, serta
+kontrol Streamlit yang diterjemahkan. Login dengan akun asli juga dikonfirmasi oleh pengguna selama
+pengujian lokal. Test otomatis memakai kredensial sintetis.
 
-### Reproducible live-image acceptance
+### Akseptansi gambar langsung yang dapat direproduksi
 
-Image access is separate from text access: the selected Responses model and the
-connected account must be allowed to use `image_generation` on the Codex route.
-A model's presence in the public catalog, a successful text request, or a plan
-name alone does not establish that access. The separate **ChatGPT (Native OAuth)**
-provider does not supply the Codex session used by this image source.
+Akses gambar terpisah dari akses teks: model Responses yang dipilih dan
+akun yang terhubung harus diizinkan memakai `image_generation` pada rute Codex.
+Keberadaan model di katalog publik, permintaan teks yang berhasil, atau sekadar nama
+paket tidak membuktikan akses tersebut. Penyedia terpisah **ChatGPT (Native OAuth)**
+tidak menyediakan sesi Codex yang dipakai sumber gambar ini.
 
-Sign in once through **OpenAI - Codex** in the WebUI, then run the acceptance
-script from the same installation and runtime directory. If using `MPT_HOME`,
-keep the same value for the WebUI and the script. Install the locked dependencies
-first with `uv sync --frozen`; FFmpeg must be available through the application's
-normal FFmpeg configuration.
+Login sekali lewat **OpenAI - Codex** di WebUI, lalu jalankan skrip akseptansi
+dari instalasi dan direktori runtime yang sama. Jika memakai `MPT_HOME`,
+gunakan nilai yang sama untuk WebUI dan skrip. Pasang dulu dependensi terkunci
+dengan `uv sync --frozen`; FFmpeg harus tersedia lewat konfigurasi FFmpeg normal aplikasi.
 
 ```sh
 uv run python scripts/accept_codex_image.py --model "<exact Responses model ID>" --output storage/acceptance/codex-image.json --plan pro --confirm-image-generation
 ```
 
-`--model` is required and is sent unchanged. For example, to reproduce the
-reported rejection for `gpt-5.6-luna`, supply that exact ID. The script does not
-try other models or providers. `--plan` is optional, self-reported context; it is
-not a verified entitlement and does not guarantee image access.
+`--model` wajib dan dikirim apa adanya. Misalnya, untuk mereproduksi
+penolakan yang dilaporkan pada `gpt-5.6-luna`, berikan ID persis tersebut. Skrip tidak
+mencoba model atau penyedia lain. `--plan` bersifat opsional dan merupakan konteks yang dilaporkan sendiri;
+ini bukan hak akses yang terverifikasi dan tidak menjamin akses gambar.
 
-`--confirm-image-generation` explicitly requests one real image using the shared
-account's allowance. There is no extra image generation for the static/zoom
-checks: both render the received PNG. The normal transport may refresh and retry
-once after an explicit HTTP 401. Other failures stop the run without regenerating.
-The request timeout defaults to 300 seconds (`--timeout`), and each render plus
-its decoding check is bounded to 120 seconds.
+`--confirm-image-generation` secara eksplisit meminta satu gambar nyata memakai kuota
+akun bersama. Tidak ada pembuatan gambar tambahan untuk pemeriksaan statis/zoom:
+keduanya merender PNG yang diterima. Transport normal dapat menyegarkan dan mencoba ulang
+sekali setelah HTTP 401 yang eksplisit. Kegagalan lain menghentikan proses tanpa membuat ulang.
+Batas waktu permintaan default 300 detik (`--timeout`), dan setiap render beserta
+pemeriksaan dekodenya dibatasi 120 detik.
 
-The script uses `capture_context` → `generate_images_codex` → `request_image`.
-It reports success only after observing a completed response and completed image
-tool result, decoding the returned PNG, and decoding frames from both rendered
-two-second clips. The generated assets are written beside the JSON report.
+Skrip memakai `capture_context` → `generate_images_codex` → `request_image`.
+Keberhasilan hanya dilaporkan setelah mengamati respons selesai dan hasil alat
+gambar selesai, mendekode PNG yang dikembalikan, dan mendekode frame dari kedua klip
+dua detik yang dirender. Aset yang dihasilkan ditulis di samping laporan JSON.
 
-The report contains the exact requested model, OS/Python/package/FFmpeg versions,
-source revision, HTTP status and request IDs where available, response/tool IDs
-and completion state, image size/hash/dimensions, and static/zoom decoding and
-duration evidence. Missing server IDs remain absent or null. A failed request
-produces a nonzero exit status and a sanitized report; the known HTTP 400
-`tool_choice`/missing-image-tool rejection is identified without copying its raw
-body. Reports never include tokens, account IDs, authorization URLs, arbitrary
-prompts, image base64, or raw provider/transport exception messages.
+Laporan memuat model yang diminta secara persis, versi OS/Python/paket/FFmpeg,
+revisi sumber, status HTTP dan ID permintaan bila tersedia, ID respons/alat
+dan status selesai, ukuran/hash/dimensi gambar, serta bukti dekode dan
+durasi statis/zoom. ID server yang tidak ada tetap tidak ada atau null. Permintaan yang gagal
+menghasilkan status keluar bukan nol dan laporan yang disanitasi; penolakan HTTP 400 yang dikenal
+terkait `tool_choice`/alat gambar tidak ada diidentifikasi tanpa menyalin isi
+mentahnya. Laporan tidak pernah memuat token, ID akun, URL otorisasi, prompt
+sembarang, base64 gambar, atau pesan pengecualian mentah dari penyedia/transport.
 
-Share the JSON report after inspection; keep credentials and generated media out
-of commits. A successful report establishes that model/account combination at
-that time, not availability for every account or model.
+Bagikan laporan JSON setelah diperiksa; jaga kredensial dan media hasil agar tidak masuk
+ke commit. Laporan yang berhasil hanya membuktikan kombinasi model/akun tersebut pada
+saat itu, bukan ketersediaan untuk setiap akun atau model.
 
-### Recorded live image acceptance
+### Akseptansi gambar langsung yang tercatat
 
-The normal image material path was tested with an existing Codex device-code
-session and a self-reported Pro plan. These reports record successful generation,
-response/tool IDs, decoded PNG hashes and dimensions, and decoded two-second
-static/zoom renders. They contain no credentials or account identifiers:
+Jalur materi gambar normal diuji dengan sesi kode perangkat Codex yang sudah ada dan
+paket Pro yang dilaporkan sendiri. Laporan ini mencatat pembuatan yang berhasil,
+ID respons/alat, hash dan dimensi PNG yang didekode, serta render statis/zoom dua detik
+yang didekode. Tidak ada kredensial atau pengenal akun di dalamnya:
 
-- [gpt-5.6-luna acceptance](validation/codex-image-gpt-5.6-luna-2026-10-28.json)
-- [gpt-6-luna acceptance](validation/codex-image-gpt-6-luna-2026-10-28.json)
+- [akseptansi gpt-5.6-luna](validation/codex-image-gpt-5.6-luna-2026-10-28.json)
+- [akseptansi gpt-6-luna](validation/codex-image-gpt-6-luna-2026-10-28.json)
 
-Each report identifies the clean source commit and relevant runtime versions.
-Neither response supplied a request-ID header. Success on this account does not
-establish access for every account or explain a different installation's HTTP
-400. The acceptance script preserves a bounded, sanitized failure classification
-when an endpoint rejects the same request; it never switches models automatically.
+Setiap laporan mengidentifikasi commit sumber yang bersih dan versi runtime terkait.
+Tidak ada respons yang menyertakan header request-ID. Keberhasilan pada akun ini tidak
+membuktikan akses untuk setiap akun atau menjelaskan HTTP 400 pada instalasi lain.
+Skrip akseptansi mempertahankan klasifikasi kegagalan yang terbatas dan disanitasi
+ketika sebuah endpoint menolak permintaan yang sama; skrip tidak pernah berganti model secara otomatis.

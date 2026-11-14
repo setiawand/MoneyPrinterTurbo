@@ -70,14 +70,3 @@ def test_catalan_language_switch_preserves_script_and_script_language(catalan_ap
             assert next(item for item in app.text_area if item.key == key).value == value
 
 
-def test_catalan_builtin_voices_and_settings_dialog(catalan_app):
-    """两种内置音色可供选择；设置弹窗可使用新语言正常打开。"""
-    assert set(voice.get_all_azure_voices(["ca-ES"])) >= {
-        "ca-ES-EnricNeural-Male", "ca-ES-JoanaNeural-Female",
-    }
-    app = catalan_app
-    assert any("Joana" in option for item in app.selectbox for option in item.options)
-    next(item for item in app.button if item.key == "open_settings_dialog_button").click().run()
-    assert not app.exception
-    assert any(tab.label == "Model de llenguatge" for tab in app.tabs)
-    assert any(tab.label == "Orígens del material" for tab in app.tabs)

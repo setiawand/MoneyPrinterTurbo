@@ -48,7 +48,7 @@ def is_generation_active(task_id: str) -> bool:
 
 
 def _submission_signature(
-    params, references, request, endpoint, preview, codex_image_context=None
+    params, request, endpoint, preview, codex_image_context=None
 ):
     # 仅保留摘要，不保存凭据或上传内容。不同 Key/模型/输入是不同请求，
     # 相同内容在完成后允许再次生成；只合并仍在排队或执行的重复提交。
@@ -61,9 +61,8 @@ def _submission_signature(
         "params": params.model_dump(mode="json", warnings=False),
         "settings": {
             name: config.snapshot_config_with_pending(getattr(config, name))
-            for name in ("app", "azure", "elevenlabs", "siliconflow", "chatterbox")
+            for name in ("app", "voicestudio")
         },
-        "references": [hashlib.sha256(value or b"").hexdigest() for value in references],
         "request": request_inputs,
         "endpoint": asdict(endpoint) if endpoint is not None else None,
         # 配音来源会改变实际输出；暂存路径随本地任务 ID 变化，不属于输入差异。
@@ -111,9 +110,6 @@ def _run_generation(
     capture_logs: bool,
     voice_preview: dict | None = None,
     loomloom_video_request: LoomLoomConfirmedVideoRequest | None = None,
-    voxcpm_reference_audio: bytes | None = None,
-    voxcpm_prompt_audio: bytes | None = None,
-    voxcpm_prompt_text: str = "",
     jalapeno_video_endpoint: volcengine_seedance.SeedanceEndpoint | None = None,
     codex_image_context: codex_image.CodexImageContext | None = None,
 ) -> dict:
@@ -149,9 +145,6 @@ def _run_generation(
                 params=params,
                 voice_preview=voice_preview,
                 loomloom_video_request=loomloom_video_request,
-                voxcpm_reference_audio=voxcpm_reference_audio,
-                voxcpm_prompt_audio=voxcpm_prompt_audio,
-                voxcpm_prompt_text=voxcpm_prompt_text,
                 **({"codex_image_context": codex_image_context}
                    if codex_image_context is not None else {}),
                 **({"jalapeno_video_endpoint": jalapeno_video_endpoint}
@@ -201,9 +194,6 @@ def submit_generation(
     capture_logs: bool = True,
     voice_preview: dict | None = None,
     loomloom_video_request: LoomLoomConfirmedVideoRequest | None = None,
-    voxcpm_reference_audio: bytes | None = None,
-    voxcpm_prompt_audio: bytes | None = None,
-    voxcpm_prompt_text: str = "",
     jalapeno_video_endpoint: volcengine_seedance.SeedanceEndpoint | None = None,
 ) -> str:
     """
@@ -216,18 +206,6 @@ def submit_generation(
     # The subtitle timeline and nested preview parameters remain mutable in
     # Streamlit session state. Snapshot them before this job enters the queue.
     voice_preview_snapshot = copy.deepcopy(voice_preview) if voice_preview else None
-    # Reference audio belongs only to this queued request. It is deliberately
-    # separate from VideoParams so it cannot reach task history, presets, state
-    # persistence, or logs. ``bytes`` is immutable; make an explicit snapshot
-    # before the background worker starts so later WebUI reruns cannot share
-    # mutable upload state with this task.
-    voxcpm_reference_audio_snapshot = (
-        bytes(voxcpm_reference_audio) if voxcpm_reference_audio else None
-    )
-    voxcpm_prompt_audio_snapshot = (
-        bytes(voxcpm_prompt_audio) if voxcpm_prompt_audio else None
-    )
-    voxcpm_prompt_text_snapshot = str(voxcpm_prompt_text or "")
     # 已确认请求是冻结的数据对象，只在当前进程内传递。API Key 不会进入
     # VideoParams、任务状态、日志或落盘历史，也不会受后续页面 rerun 影响。
     loomloom_request_snapshot = loomloom_video_request
@@ -244,11 +222,6 @@ def submit_generation(
     )
     signature = _submission_signature(
         task_params,
-        (
-            voxcpm_reference_audio_snapshot,
-            voxcpm_prompt_audio_snapshot,
-            voxcpm_prompt_text_snapshot.encode(),
-        ),
         loomloom_request_snapshot,
         jalapeno_video_endpoint,
         voice_preview_snapshot,
@@ -269,9 +242,6 @@ def submit_generation(
             capture_logs,
             voice_preview_snapshot,
             loomloom_request_snapshot,
-            voxcpm_reference_audio_snapshot,
-            voxcpm_prompt_audio_snapshot,
-            voxcpm_prompt_text_snapshot,
             jalapeno_video_endpoint,
             codex_image_context,
         )
@@ -289,9 +259,6 @@ def _enqueue_generation(
     capture_logs,
     voice_preview_snapshot,
     loomloom_request_snapshot,
-    voxcpm_reference_audio_snapshot,
-    voxcpm_prompt_audio_snapshot,
-    voxcpm_prompt_text_snapshot,
     jalapeno_video_endpoint,
     codex_image_context=None,
 ):
@@ -313,9 +280,6 @@ def _enqueue_generation(
             capture_logs=capture_logs,
             voice_preview=voice_preview_snapshot,
             loomloom_video_request=loomloom_request_snapshot,
-            voxcpm_reference_audio=voxcpm_reference_audio_snapshot,
-            voxcpm_prompt_audio=voxcpm_prompt_audio_snapshot,
-            voxcpm_prompt_text=voxcpm_prompt_text_snapshot,
             **({"codex_image_context": codex_image_context}
                if codex_image_context is not None else {}),
             **({"jalapeno_video_endpoint": jalapeno_video_endpoint}

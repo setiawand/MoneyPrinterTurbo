@@ -1,11 +1,11 @@
 import sys
 import tempfile
-import threading
 import unittest
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+
+import requests
 
 # 测试文件直接运行时，也能从仓库根目录导入 app 包。
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -14,48 +14,6 @@ from app.services import subtitle
 
 
 class TestSubtitleService(unittest.TestCase):
-    def test_concurrent_subtitles_initialize_whisper_once(self):
-        """Concurrent jobs must not load the large Whisper model twice."""
-        first_constructor_started = threading.Event()
-        release_constructor = threading.Event()
-        second_constructor_started = threading.Event()
-        constructor_calls = []
-
-        class FakeWhisperModel:
-            def __init__(self, **_kwargs):
-                constructor_calls.append(1)
-                if len(constructor_calls) == 1:
-                    first_constructor_started.set()
-                else:
-                    second_constructor_started.set()
-                release_constructor.wait(timeout=2)
-
-            def transcribe(self, _audio_file, **_kwargs):
-                return [], SimpleNamespace(language="en", language_probability=1.0)
-
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with (
-                patch.object(subtitle, "model", None),
-                patch.object(subtitle, "WhisperModel", FakeWhisperModel),
-            ):
-                with ThreadPoolExecutor(max_workers=2) as executor:
-                    first = executor.submit(
-                        subtitle.create, "audio-1.mp3", str(Path(temp_dir) / "1.srt")
-                    )
-                    self.assertTrue(first_constructor_started.wait(timeout=1))
-                    second = executor.submit(
-                        subtitle.create, "audio-2.mp3", str(Path(temp_dir) / "2.srt")
-                    )
-                    try:
-                        duplicate_load = second_constructor_started.wait(timeout=0.2)
-                    finally:
-                        release_constructor.set()
-                    first.result(timeout=2)
-                    second.result(timeout=2)
-
-        self.assertFalse(duplicate_load, "Whisper was loaded twice")
-        self.assertEqual(len(constructor_calls), 1)
-
     def test_file_to_subtitles_returns_empty_for_missing_input(self):
         """空路径和不存在的文件都应安全返回空列表。"""
         self.assertEqual(subtitle.file_to_subtitles(""), [])
@@ -101,8 +59,7 @@ class TestSubtitleService(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             subtitle_file = Path(tmp_dir) / "private-reference.srt"
             with (
-                patch.object(subtitle, "model", None),
-                patch.object(subtitle, "WhisperModel", _FakeWhisperModel),
+                patch.object(subtitle, "model", _FakeWhisperModel()),
                 patch.object(subtitle.logger, "info") as info,
                 patch.object(subtitle.logger, "debug") as debug,
             ):
@@ -128,19 +85,43 @@ class TestSubtitleService(unittest.TestCase):
         self.assertEqual(subtitle.similarity("Hello", "hello"), 1.0)
         self.assertLess(subtitle.similarity("hello", "world"), 0.5)
 
-    def test_create_returns_empty_when_whisper_is_unavailable(self):
-        """可选 Whisper 依赖未安装时应跳过，而不是在任务线程中抛异常。"""
-        with patch.object(subtitle, "WhisperModel", None):
-            self.assertEqual(subtitle.create("audio.mp3"), "")
-
-    def test_create_returns_none_when_whisper_model_cannot_load(self):
-        """模型下载或初始化失败时必须返回失败结果，并允许任务层更新状态。"""
-        with patch.object(subtitle, "model", None), patch.object(
-            subtitle,
-            "WhisperModel",
-            side_effect=RuntimeError("model unavailable"),
-        ):
+    def test_create_returns_none_when_voicestudio_is_unreachable(self):
+        """VoiceStudio tidak dapat dihubungi: kembalikan None agar lapisan tugas memperbarui status."""
+        failing = SimpleNamespace(
+            transcribe=lambda *_a, **_k: (_ for _ in ()).throw(
+                requests.ConnectionError("refused")
+            )
+        )
+        with patch.object(subtitle, "model", failing):
             self.assertIsNone(subtitle.create("audio.mp3"))
+
+    def test_voicestudio_response_is_grouped_into_segments_with_spaced_words(self):
+        body = {
+            "language": "en",
+            "segments": [
+                {"start": 0.0, "end": 0.9, "text": " Hello world."},
+                {"start": 1.0, "end": 1.5, "text": "Again"},
+            ],
+            "words": [
+                {"word": "Hello", "start": 0.0, "end": 0.4},
+                {"word": "world.", "start": 0.4, "end": 0.9},
+                {"word": "Again", "start": 1.0, "end": 1.5},
+                {"word": "你", "start": 1.5, "end": 1.6},
+                {"word": "好", "start": 1.6, "end": 1.7},
+            ],
+        }
+        response = SimpleNamespace(raise_for_status=lambda: None, json=lambda: body)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            audio = Path(tmp_dir) / "a.mp3"
+            audio.write_bytes(b"x")
+            with patch.object(subtitle.requests, "post", return_value=response) as post:
+                segments, info = subtitle.VoiceStudioASR().transcribe(str(audio))
+        self.assertEqual(info.language, "en")
+        self.assertTrue(post.call_args.args[0].endswith("/v1/audio/transcriptions"))
+        self.assertEqual(
+            ["".join(w.word for w in s.words) for s in segments],
+            ["Hello world.", "Again你好"],
+        )
 
     def test_create_writes_punctuated_and_trailing_segments(self):
         """
@@ -168,11 +149,7 @@ class TestSubtitleService(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             subtitle_file = Path(tmp_dir) / "generated.srt"
-            with patch.object(subtitle, "model", None), patch.object(
-                subtitle,
-                "WhisperModel",
-                _FakeWhisperModel,
-            ):
+            with patch.object(subtitle, "model", _FakeWhisperModel()):
                 subtitle.create("audio.mp3", str(subtitle_file))
 
             items = subtitle.file_to_subtitles(str(subtitle_file))
@@ -196,9 +173,7 @@ class TestSubtitleService(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
             output = Path(tmp_dir) / "numeric.srt"
-            with patch.object(subtitle, "model", fake_model), patch.object(
-                subtitle, "WhisperModel", object()
-            ):
+            with patch.object(subtitle, "model", fake_model):
                 subtitle.create("audio.mp3", str(output))
             items = subtitle.file_to_subtitles(str(output))
         self.assertEqual(
@@ -222,9 +197,7 @@ class TestSubtitleService(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
             output = Path(tmp_dir) / "suffix.srt"
-            with patch.object(subtitle, "model", fake_model), patch.object(
-                subtitle, "WhisperModel", object()
-            ):
+            with patch.object(subtitle, "model", fake_model):
                 subtitle.create("audio.mp3", str(output))
             items = subtitle.file_to_subtitles(str(output))
         self.assertEqual([item[2] for item in items], ["3.14", "1,000"])
@@ -249,11 +222,7 @@ class TestSubtitleService(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             subtitle_file = Path(tmp_dir) / "word-level.srt"
-            with patch.object(subtitle, "model", None), patch.object(
-                subtitle,
-                "WhisperModel",
-                _FakeWhisperModel,
-            ):
+            with patch.object(subtitle, "model", _FakeWhisperModel()):
                 subtitle.create(
                     "audio.mp3",
                     str(subtitle_file),
@@ -263,8 +232,6 @@ class TestSubtitleService(unittest.TestCase):
             items = subtitle.file_to_subtitles(str(subtitle_file))
 
         self.assertEqual([item[2] for item in items], ["Hello", "world"])
-        self.assertIs(transcribe_kwargs["word_timestamps"], True)
-        self.assertIs(transcribe_kwargs["vad_filter"], True)
         self.assertIn("00:00:00,100 --> 00:00:00,400", items[0][1])
         self.assertIn("00:00:00,400 --> 00:00:00,800", items[1][1])
 
@@ -287,10 +254,7 @@ class TestSubtitleService(unittest.TestCase):
             with self.subTest(word_level=word_level):
                 with tempfile.TemporaryDirectory() as tmp_dir:
                     subtitle_file = Path(tmp_dir) / "unaligned.srt"
-                    with (
-                        patch.object(subtitle, "model", None),
-                        patch.object(subtitle, "WhisperModel", FakeWhisperModel),
-                    ):
+                    with patch.object(subtitle, "model", FakeWhisperModel()):
                         subtitle.create(
                             "audio.mp3", str(subtitle_file), word_level=word_level
                         )

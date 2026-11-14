@@ -168,134 +168,16 @@ def test_duration_estimator_is_local_and_respects_voice_rate():
     assert estimate("AI tools can simplify repetitive work.", 1.0) is not None
 
 
-def test_provider_signature_changes_when_api_key_changes():
-    """只修改 API Key 也必须让试听缓存失效，不能伪装成新凭证验证成功。"""
-    test_config = SimpleNamespace(
-        app={"gemini_api_key": "old-gemini", "mimo_api_key": "old-mimo"},
-        azure={"speech_region": "eastasia", "speech_key": "old-azure"},
-        siliconflow={"api_key": "old-siliconflow"},
-        elevenlabs={"api_key": "old-elevenlabs", "model_id": "eleven_v3"},
-        chatterbox={
-            "api_key": "old-chatterbox",
-            "base_url": "http://127.0.0.1:4123/v1",
-            "model_id": "chatterbox",
-        },
-        voxcpm={
-            "api_key": "old-voxcpm",
-            "base_url": "https://api.modelbest.cn/v1",
-            "model_id": "speech-model",
-            "voice_id": "default",
-        },
-    )
-    provider_signature = _load_provider_signature(test_config)
-
-    old_signature = provider_signature("elevenlabs")
-    test_config.elevenlabs["api_key"] = "new-elevenlabs"
-    new_signature = provider_signature("elevenlabs")
-
-    assert old_signature != new_signature
-    assert "old-elevenlabs" not in str(old_signature)
-    assert "new-elevenlabs" not in str(new_signature)
 
 
-def test_voxcpm_preview_signature_tracks_endpoint_model_and_credentials():
-    session_state = {}
-    test_config = SimpleNamespace(
-        app={}, azure={}, siliconflow={}, elevenlabs={}, chatterbox={}, kokoro={},
-        voxcpm={
-            "api_key": "old-key",
-            "base_url": "https://api.modelbest.cn/v1",
-            "model_id": "speech-model-a",
-            "voice_id": "default",
-        },
-    )
-    provider_signature = _load_provider_signature(test_config, session_state)
-
-    original = provider_signature("voxcpm")
-    test_config.voxcpm["model_id"] = "speech-model-b"
-    changed_model = provider_signature("voxcpm")
-    test_config.voxcpm["api_key"] = "new-key"
-    changed_key = provider_signature("voxcpm")
-    session_state["voxcpm_reference_audio"] = {"audio_digest": "new-reference"}
-    changed_reference = provider_signature("voxcpm")
-    session_state["voxcpm_high_fidelity_enabled"] = True
-    session_state["voxcpm_prompt_text_input"] = "delivery transcript"
-    reused_reference_as_prompt = provider_signature("voxcpm")
-    session_state["voxcpm_separate_prompt_audio_enabled"] = True
-    session_state["voxcpm_prompt_audio"] = {"audio_digest": "new-prompt"}
-    changed_prompt = provider_signature("voxcpm")
-
-    assert original != changed_model != changed_key != changed_reference
-    assert changed_reference != reused_reference_as_prompt != changed_prompt
-    assert "old-key" not in str(original)
-    assert "new-key" not in str(changed_key)
 
 
-def test_replacing_shared_reference_clears_its_transcript():
-    session_state = {
-        "voxcpm_reference_audio": _session_audio(b"clip-a"),
-        "voxcpm_high_fidelity_enabled": True,
-        "voxcpm_separate_prompt_audio_enabled": False,
-        "voxcpm_prompt_text_input": "clip A transcript",
-    }
-    helpers = _load_voxcpm_state_helpers(session_state)
-
-    helpers["_sync_voxcpm_reference_audio"](
-        _FakeAudioUpload("clip-b.wav", b"clip-b")
-    )
-
-    assert "voxcpm_prompt_text_input" not in session_state
 
 
-def test_replacing_separate_delivery_audio_clears_transcript_but_not_identity_change():
-    session_state = {
-        "voxcpm_reference_audio": _session_audio(b"identity-a"),
-        "voxcpm_prompt_audio": _session_audio(b"delivery-a"),
-        "voxcpm_high_fidelity_enabled": True,
-        "voxcpm_separate_prompt_audio_enabled": True,
-        "voxcpm_prompt_text_input": "delivery A transcript",
-    }
-    helpers = _load_voxcpm_state_helpers(session_state)
-
-    helpers["_sync_voxcpm_reference_audio"](
-        _FakeAudioUpload("identity-b.wav", b"identity-b")
-    )
-    assert session_state["voxcpm_prompt_text_input"] == "delivery A transcript"
-
-    helpers["_sync_voxcpm_prompt_audio"](
-        _FakeAudioUpload("delivery-b.wav", b"delivery-b")
-    )
-    assert "voxcpm_prompt_text_input" not in session_state
 
 
-def test_switching_prompt_example_modes_clears_transcript():
-    session_state = {
-        "voxcpm_prompt_example_mode": False,
-        "voxcpm_prompt_text_input": "shared transcript",
-    }
-    helpers = _load_voxcpm_state_helpers(session_state)
-
-    helpers["_sync_voxcpm_prompt_example_mode"](True)
-
-    assert "voxcpm_prompt_text_input" not in session_state
 
 
-def test_invalid_reference_upload_blocks_voxcpm_preview_only():
-    session_state = {"voxcpm_reference_audio_error": "invalid WAV"}
-    helpers = _load_voxcpm_state_helpers(session_state)
-
-    assert (
-        helpers["_get_voxcpm_preview_validation_error"](
-            "voxcpm", "voxcpm:default"
-        )
-        == "invalid WAV"
-    )
-    assert (
-        helpers["_get_voxcpm_preview_validation_error"](
-            "azure-tts-v1", "zh-CN-XiaoxiaoNeural-Female"
-        )
-        == ""
-    )
 
 
 def test_full_voiceover_preview_is_disabled_until_script_exists():

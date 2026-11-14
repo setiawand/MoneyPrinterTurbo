@@ -144,52 +144,6 @@ def test_legacy_word_timeline_across_script_lines_keeps_subtitles(
     assert subtitle_file.read_text(encoding="utf-8") == _srt(captions)
 
 
-def test_word_across_script_lines_with_a_pause_tag(tmp_path):
-    script = (
-        "On July 20, 1969, two astronauts landed on the Moon. [pause: 1s] "
-        "Millions of people watched it live on TV."
-    )
-    # Each part is spoken on its own; Edge TTS returns its words and audio.
-    parts = {
-        "On July 20, 1969, two astronauts landed on the Moon.": (MOON_WORDS, 5.35),
-        "Millions of people watched it live on TV.": (
-            [
-                ("Millions", 0.1, 0.55),
-                ("of", 0.5625, 0.65),
-                ("people", 0.6625, 1.0),
-                ("watched", 1.0125, 1.3375),
-                ("it", 1.35, 1.4375),
-                ("live", 1.45, 1.7),
-                ("on", 1.7125, 1.85),
-                ("TV", 1.8625, 2.3875),
-            ],
-            3.26,
-        ),
-    }
-
-    def edge_tts(text, voice_name, voice_rate, voice_file):
-        words, duration = parts[text]
-        with wave.open(voice_file, "wb") as audio:
-            audio.setnchannels(1)
-            audio.setsampwidth(2)
-            audio.setframerate(24000)
-            audio.writeframes(bytes(2 * round(duration * 24000)))
-        return _edge_sub_maker(words)
-
-    with patch.object(voice, "azure_tts_v1", side_effect=edge_tts):
-        sub_maker = voice.tts(
-            script, "en-US-JennyNeural-Female", 1.0, str(tmp_path / "audio.mp3")
-        )
-    subtitle_file = tmp_path / "subtitle.srt"
-    voice.create_subtitle(sub_maker, script, str(subtitle_file))
-
-    # The second part starts after 5.35 s of speech and the 1 s pause.
-    assert subtitle_file.read_text(encoding="utf-8") == _srt(
-        [
-            *MOON_CAPTIONS,
-            ("00:00:06,450 --> 00:00:08,738", "Millions of people watched it live on TV"),
-        ]
-    )
 
 
 def test_lines_are_kept_when_the_words_do_not_spell_the_script(tmp_path):

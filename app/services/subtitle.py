@@ -1,13 +1,11 @@
 import json
 import os.path
+import re
 import tempfile
-import threading
 from timeit import default_timer as timer
+from types import SimpleNamespace
 
-try:
-    from faster_whisper import WhisperModel
-except ImportError:
-    WhisperModel = None
+import requests
 from loguru import logger
 
 from app.config import config
@@ -16,46 +14,84 @@ from app.utils import utils
 from app.utils.subtitle_reader import file_to_subtitles as file_to_subtitles
 from app.utils.subtitle_writer import write_subtitle_file
 
-model_size = config.whisper.get("model_size", "large-v3")
-device = config.whisper.get("device", "cpu")
-compute_type = config.whisper.get("compute_type", "int8")
-initial_prompt = config.whisper.get("initial_prompt", "") or None
-model = None
-_model_init_lock = threading.Lock()
+# Aksara yang kata-katanya tidak dipisah spasi; aksara lain (Latin, Sirilik, Arab, dll.) perlu spasi.
+_UNSPACED = re.compile(
+    "[\u0e00-\u0eff\u1000-\u109f\u1780-\u17ff\u3000-\u30ff\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]"
+)
 
 
-def _ensure_model_loaded() -> bool:
-    """Load the large Whisper model once, even when jobs start concurrently."""
-    global model
-    if model is not None:
-        return True
+def _joined(prev: str, word: str) -> str:
+    """VoiceStudio mengirim kata tanpa spasi di depan, sedangkan Whisper dulu menyertakannya; pulihkan di sini."""
+    if not prev or word[:1].isspace() or not word:
+        return word
+    if _UNSPACED.match(prev[-1]) or _UNSPACED.match(word[0]):
+        return word
+    return " " + word
 
-    with _model_init_lock:
-        if model is not None:
-            return True
-        model_path = f"{utils.root_dir()}/models/whisper-{model_size}"
-        model_bin_file = f"{model_path}/model.bin"
-        if not os.path.isdir(model_path) or not os.path.isfile(model_bin_file):
-            model_path = model_size
 
-        logger.info(
-            f"loading model: {model_path}, device: {device}, compute_type: {compute_type}"
+class VoiceStudioASR:
+    """Speech-to-text via a local VoiceStudio server (OpenAI-compatible API)."""
+
+    def transcribe(self, audio_file, **_kwargs):
+        cfg = config.whisper
+        url = (
+            str(
+                cfg.get("base_url")
+                or config.voicestudio.get("base_url")
+                or "http://localhost:3900"
+            ).rstrip("/")
+            + "/v1/audio/transcriptions"
         )
-        try:
-            model = WhisperModel(
-                model_size_or_path=model_path, device=device, compute_type=compute_type
+        data = [
+            ("model", cfg.get("model") or "whisper-1"),
+            ("response_format", "verbose_json"),
+            ("timestamp_granularities[]", "word"),
+            ("timestamp_granularities[]", "segment"),
+        ]
+        if cfg.get("language"):
+            data.append(("language", cfg["language"]))
+        if cfg.get("initial_prompt"):
+            data.append(("prompt", cfg["initial_prompt"]))
+        with open(audio_file, "rb") as audio:
+            response = requests.post(
+                url,
+                data=data,
+                files={"file": (os.path.basename(audio_file), audio)},
+                timeout=float(cfg.get("timeout") or 600),
             )
-        except Exception as e:
-            logger.error(
-                f"failed to load model: {e} \n\n"
-                f"********************************************\n"
-                f"this may be caused by network issue. \n"
-                f"please download the model manually and put it in the 'models' folder. \n"
-                f"see [README.md FAQ](https://github.com/harry0703/MoneyPrinterTurbo) for more details.\n"
-                f"********************************************\n\n"
+        response.raise_for_status()
+        body = response.json()
+
+        # Timestamp per kata ada di tingkat atas; kelompokkan ke tiap segmen berdasarkan waktu.
+        words = [
+            SimpleNamespace(
+                start=float(w["start"]), end=float(w["end"]), word=str(w["word"])
             )
-            return False
-    return True
+            for w in body.get("words") or []
+            if str(w.get("word", "")).strip()
+        ]
+        segments = []
+        for seg in body.get("segments") or []:
+            start, end = float(seg["start"]), float(seg["end"])
+            own = []
+            while words and (words[0].start + words[0].end) / 2 <= end + 0.01:
+                own.append(words.pop(0))
+            segments.append(
+                SimpleNamespace(
+                    start=start, end=end, text=str(seg.get("text", "")), words=own
+                )
+            )
+        if words and segments:  # kata sisa di ujung digabung ke segmen terakhir
+            segments[-1].words.extend(words)
+        for seg in segments:
+            prev = ""
+            for w in seg.words:
+                w.word = _joined(prev, w.word)
+                prev = w.word
+        return segments, SimpleNamespace(language=body.get("language"))
+
+
+model = VoiceStudioASR()
 
 
 def create(
@@ -64,29 +100,21 @@ def create(
     word_level: bool = False,
     log_details: bool = True,
 ):
-    if WhisperModel is None:
-        logger.warning("faster_whisper not available, skipping whisper subtitle generation")
-        return ""
-    if not _ensure_model_loaded():
-        return None
-
     if log_details:
         logger.info(f"start, output file: {subtitle_file}")
     if not subtitle_file:
         subtitle_file = f"{audio_file}.srt"
 
-    segments, info = model.transcribe(
-        audio_file,
-        beam_size=5,
-        word_timestamps=True,
-        vad_filter=True,
-        vad_parameters=dict(min_silence_duration_ms=500),
-        **({"initial_prompt": initial_prompt} if initial_prompt else {}),
-    )
+    try:
+        segments, info = model.transcribe(audio_file)
+    except (requests.RequestException, ValueError, KeyError) as e:
+        logger.error(
+            f"VoiceStudio transcription failed: {type(e).__name__}: {e}. "
+            "Check that VoiceStudio is running and [whisper] base_url is correct."
+        )
+        return None
 
-    logger.info(
-        f"detected language: '{info.language}', probability: {info.language_probability:.2f}"
-    )
+    logger.info(f"detected language: '{info.language}'")
 
     start = timer()
     subtitles = []
@@ -106,9 +134,9 @@ def create(
 
     for segment in segments:
         if not segment.words:
-            # Faster Whisper exposes words as Optional[List[Word]]. A segment
-            # can still have usable text and timestamps when alignment yields
-            # no words; keep that subtitle in both sentence and word modes.
+            # Daftar kata sebuah segmen bisa kosong. Segmen itu tetap punya teks dan
+            # timestamp yang layak pakai walau penyelarasan tidak menghasilkan kata;
+            # pertahankan subtitle tersebut pada mode kalimat maupun kata.
             recognized(segment.text, segment.start, segment.end)
             continue
 

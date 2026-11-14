@@ -1,28 +1,28 @@
-# Security Policy
+# Kebijakan Keamanan
 
-## Supported Versions
+## Versi yang Didukung
 
-Security fixes are applied on a best-effort basis to the latest `main` branch and the most recent published release line.
+Perbaikan keamanan diterapkan dengan upaya terbaik pada cabang `main` terbaru dan lini rilis terbaru yang dipublikasikan.
 
-## Reporting a Vulnerability
+## Melaporkan Kerentanan
 
-Please do **not** disclose suspected vulnerabilities in public GitHub issues.
+Mohon **jangan** mengungkap dugaan kerentanan di isu GitHub publik.
 
-Preferred process:
+Proses yang disarankan:
 
-1. Use GitHub private vulnerability reporting for this repository if it is available in the repository security settings.
-2. If private reporting is not available, open a minimal public issue that only requests a private contact channel and does **not** include vulnerability details, proof-of-concept code, payloads, or sensitive file paths.
-3. Wait for a maintainer response before sharing any technical details publicly.
+1. Gunakan pelaporan kerentanan privat GitHub untuk repositori ini jika tersedia di pengaturan keamanan repositori.
+2. Jika pelaporan privat tidak tersedia, buka isu publik minimal yang hanya meminta kanal kontak privat dan **tidak** menyertakan detail kerentanan, kode proof-of-concept, payload, atau path berkas sensitif.
+3. Tunggu tanggapan pengelola sebelum membagikan detail teknis apa pun secara publik.
 
-When reporting a vulnerability privately, include:
+Saat melaporkan kerentanan secara privat, sertakan:
 
-- affected commit, tag, or release version
-- attack surface or vulnerable endpoint
-- impact summary
-- reproduction conditions
-- suggested remediation, if available
+- commit, tag, atau versi rilis yang terdampak
+- permukaan serangan atau endpoint yang rentan
+- ringkasan dampak
+- kondisi reproduksi
+- saran perbaikan, jika ada
 
-## Disclosure Expectations
+## Harapan Pengungkapan
 
-- Please give maintainers reasonable time to investigate and prepare a fix before public disclosure.
-- Once a fix is available, coordinated public disclosure is welcome.
+- Mohon beri pengelola waktu yang wajar untuk menyelidiki dan menyiapkan perbaikan sebelum pengungkapan publik.
+- Setelah perbaikan tersedia, pengungkapan publik yang terkoordinasi sangat diterima.

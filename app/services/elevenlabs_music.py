@@ -43,8 +43,9 @@ def get_api_key() -> str:
     """
     读取 ElevenLabs 共用 API Key。
 
-    配乐与现有 ElevenLabs TTS 使用同一个账号配置，避免用户在 WebUI 重复维护
-    两份 Key；环境变量仅作为本机配置未填写时的后备来源。
+    Kunci dibaca dari konfigurasi [elevenlabs] yang sama dengan WebUI agar pengguna
+    tidak mengelola dua kunci; variabel lingkungan hanya cadangan bila konfigurasi
+    lokal kosong.
     """
     configured_key = str(config.elevenlabs.get("api_key", "") or "").strip()
     return configured_key or os.getenv("ELEVENLABS_API_KEY", "").strip()

@@ -163,28 +163,8 @@ def test_tts_does_not_send_emoji_to_the_voice():
     assert single_tts.call_args.kwargs["text"] == "Ready to grow? Let's go now."
 
 
-def test_tts_with_pause_tags_does_not_send_emoji_to_the_voice():
-    with patch.object(
-        voice, "_tts_with_pauses", return_value=SubMaker()
-    ) as tts_with_pauses:
-        voice.tts("Hi 👋 [pause: 1s] Bye 👋", "en-US-AriaNeural", 1.0, "audio.mp3")
-
-    assert tts_with_pauses.call_args.kwargs["text"] == "Hi [pause: 1s] Bye"
 
 
-def test_tts_does_not_call_a_voice_for_a_script_made_only_of_emoji():
-    with (
-        patch.object(voice, "_single_tts") as single_tts,
-        patch.object(voice, "_tts_with_pauses") as tts_with_pauses,
-        patch.object(voice.logger, "warning") as warning,
-    ):
-        assert voice.tts("🚀🔥 👍", "en-US-AriaNeural", 1.0, "audio.mp3") is None
-
-    single_tts.assert_not_called()
-    tts_with_pauses.assert_not_called()
-    warning.assert_called_once_with(
-        "the script has no text to narrate once emoji are removed"
-    )
 
 
 def _edge_sub_maker(*words):

@@ -1,152 +1,152 @@
 # OpenAI - ChatGPT (Native OAuth)
 
-This optional provider registers MoneyPrinterTurbo using OpenAI's official
-[Sign in with ChatGPT flow](https://developers.openai.com/siwc/token-sharing-open-source/sign-in).
-Select **OpenAI - ChatGPT (Native OAuth)** explicitly in LLM settings. Its
-configuration ID is `openai_chatgpt`; it uses the authorized ChatGPT plan through
-public `/v1/models` and `/v1/responses` endpoints without an API key or Codex CLI.
+Penyedia opsional ini mendaftarkan MoneyPrinterTurbo memakai
+[alur Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source/sign-in) resmi OpenAI.
+Pilih **OpenAI - ChatGPT (Native OAuth)** secara eksplisit di pengaturan LLM. ID
+konfigurasinya `openai_chatgpt`; ia memakai paket ChatGPT yang diotorisasi lewat
+endpoint publik `/v1/models` dan `/v1/responses` tanpa kunci API atau Codex CLI.
 
-## Compatibility and eligibility
+## Kompatibilitas dan kelayakan
 
-The existing **OpenAI - Codex** (`openai_codex`) provider keeps its device-code
-sign-in, model catalog, configuration keys and credentials. Upgrading does not
-select native OAuth, reinterpret device credentials, or require existing Codex
-users to sign in again. The two providers have independent model settings.
+Penyedia **OpenAI - Codex** (`openai_codex`) yang sudah ada mempertahankan login
+kode perangkat, katalog model, kunci konfigurasi, dan kredensialnya. Peningkatan versi tidak
+memilih native OAuth, menafsirkan ulang kredensial perangkat, atau mewajibkan pengguna Codex
+yang ada untuk login lagi. Kedua penyedia memiliki pengaturan model yang independen.
 
-Native OAuth requires an eligible account/workspace and permission to use its
-ChatGPT plan. An account that works with the device-code provider may be unable
-to authorize this separate flow. A consent page with disabled Continue cannot
-necessarily be fixed by signing in again. Do not infer eligibility from the plan
-name alone or treat a single account's result as applying to all Free accounts.
-See OpenAI's [eligibility and recovery guidance](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery).
+Native OAuth memerlukan akun/workspace yang memenuhi syarat dan izin untuk memakai
+paket ChatGPT-nya. Akun yang berfungsi dengan penyedia kode perangkat mungkin tidak dapat
+mengotorisasi alur terpisah ini. Halaman persetujuan dengan tombol Continue nonaktif tidak
+selalu dapat diperbaiki dengan login ulang. Jangan menyimpulkan kelayakan dari nama paket
+saja atau menganggap hasil satu akun berlaku untuk semua akun Free.
+Lihat [panduan kelayakan dan pemulihan](https://developers.openai.com/siwc/token-sharing-open-source/errors-and-recovery) OpenAI.
 
-If native authorization is unavailable, select another provider explicitly.
-Neither authorization nor inference failures switch to Codex or API-key billing.
-Native sign-in, cancellation and disconnect never modify device-flow credentials.
+Jika otorisasi native tidak tersedia, pilih penyedia lain secara eksplisit.
+Kegagalan otorisasi maupun inferensi tidak beralih ke Codex atau penagihan kunci API.
+Login native, pembatalan, dan pemutusan koneksi tidak pernah mengubah kredensial alur perangkat.
 
-## Local sign-in
+## Login lokal
 
-1. Run MoneyPrinterTurbo and select **OpenAI - ChatGPT (Native OAuth)**.
-2. Choose **Continue with ChatGPT**, then open the OpenAI authorization page.
-3. Sign in and authorize this application. The browser returns to a temporary
-   `http://127.0.0.1:<port>/auth/callback` listener owned by the Python process.
-4. Return to settings, select an account-listed model, and test the connection
-   or generate a script and search terms.
+1. Jalankan MoneyPrinterTurbo dan pilih **OpenAI - ChatGPT (Native OAuth)**.
+2. Pilih **Continue with ChatGPT**, lalu buka halaman otorisasi OpenAI.
+3. Login dan otorisasi aplikasi ini. Browser kembali ke listener sementara
+   `http://127.0.0.1:<port>/auth/callback` milik proses Python.
+4. Kembali ke pengaturan, pilih model yang terdaftar di akun, lalu uji koneksi
+   atau buat naskah dan kata kunci pencarian.
 
-The browser and Python runtime must run on the same computer. This implementation
-has no remote callback forwarding or credential transfer for Docker/remote VMs.
-Selecting native OAuth in a remotely accessed WebUI does not make the callback
-reachable. Use the separately available Codex provider where that flow works,
-or explicitly configure another provider. Voice and video services remain
-separately configured.
+Browser dan runtime Python harus berjalan di komputer yang sama. Implementasi ini
+tidak memiliki penerusan callback jarak jauh atau transfer kredensial untuk Docker/VM jarak jauh.
+Memilih native OAuth di WebUI yang diakses dari jauh tidak membuat callback
+dapat dijangkau. Gunakan penyedia Codex yang tersedia terpisah di tempat alur itu berfungsi,
+atau konfigurasikan penyedia lain secara eksplisit. Layanan suara dan video tetap
+dikonfigurasi terpisah.
 
-## Registrations and storage
+## Registrasi dan penyimpanan
 
-Initial registration uses `dynamic_agent_client`, the application name and a
-stable installation host ID. Later sign-ins reuse the issued client ID. Each
-attempt uses fresh state, nonce and PKCE. ID-token signatures, issuer, audience,
-expiry, nonce and returning identity are verified. Inference requires the granted
-`chatgpt.tokens.use.direct` scope.
+Registrasi awal memakai `dynamic_agent_client`, nama aplikasi, dan ID host instalasi
+yang stabil. Login berikutnya memakai ulang ID klien yang diterbitkan. Setiap
+percobaan memakai state, nonce, dan PKCE yang baru. Tanda tangan ID-token, issuer, audience,
+kedaluwarsa, nonce, dan identitas yang kembali diverifikasi. Inferensi memerlukan scope
+`chatgpt.tokens.use.direct` yang diberikan.
 
-The stores under the runtime root (`MPT_HOME` when set) are separate:
+Penyimpanan di bawah root runtime (`MPT_HOME` bila diatur) terpisah:
 
-| Provider | Credential file | Model configuration |
+| Penyedia | Berkas kredensial | Konfigurasi model |
 | --- | --- | --- |
-| Codex device code | `storage/auth/openai_codex.bin` | `openai_codex_model_name` |
+| Codex kode perangkat | `storage/auth/openai_codex.bin` | `openai_codex_model_name` |
 | ChatGPT native OAuth | `storage/auth/openai_chatgpt.bin` | `openai_chatgpt_model_name` |
 
-Windows uses user-scoped DPAPI; Unix writes use private permissions. Native
-writes are atomic. Discovery/JWKS run before taking the refresh critical section;
-the rotating-token exchange and persistence stay serialized across processes.
-After obtaining the lock, a waiter reloads the latest credentials instead of
-refreshing the old token again. Lock contention is recoverable and does not clear
-credentials. Account controls have a short bounded lock wait and a retry action;
-request paths share their remaining time budget with refresh and lock waits.
+Windows memakai DPAPI per pengguna; penulisan di Unix memakai izin privat. Penulisan
+native bersifat atomik. Discovery/JWKS berjalan sebelum masuk ke bagian kritis penyegaran;
+pertukaran token berotasi dan persistensinya tetap diserialkan antar proses.
+Setelah mendapat kunci, proses yang menunggu memuat ulang kredensial terbaru alih-alih
+menyegarkan token lama lagi. Perebutan kunci dapat dipulihkan dan tidak menghapus
+kredensial. Kontrol akun memiliki waktu tunggu kunci yang singkat dan terbatas serta aksi coba ulang;
+jalur permintaan berbagi sisa anggaran waktunya dengan penyegaran dan penantian kunci.
 
-**Disconnect ChatGPT** attempts revocation and clears the selected native
-account's tokens while retaining its registration/host identity. If revocation
-cannot be confirmed, check the connected application in ChatGPT settings.
+**Putuskan ChatGPT** mencoba mencabut dan menghapus token akun native yang dipilih
+sambil mempertahankan identitas registrasi/host-nya. Jika pencabutan
+tidak dapat dikonfirmasi, periksa aplikasi yang terhubung di pengaturan ChatGPT.
 
-### Users of the earlier PR preview
+### Pengguna pratinjau PR sebelumnya
 
-Commit `8bab424` stored native v2 credentials at the old Codex path. Users who
-actually tried that preview can explicitly copy that record with:
+Commit `8bab424` menyimpan kredensial native v2 di path Codex yang lama. Pengguna yang
+benar-benar mencoba pratinjau itu dapat menyalin catatan tersebut secara eksplisit dengan:
 
 ```shell
 uv run python scripts/accept_chatgpt_oauth.py --import-preview
 ```
 
-Import requires a valid v2 native record and an absent native destination. It
-preserves the registration and host ID, never converts device credentials, never
-overwrites an existing native store, and retains the source file. The command
-then runs model and generation checks against the imported account; normal
-upgrades do not need it. For an import without inference, call
-`chatgpt_auth.import_preview_credentials()` from a local Python session.
+Impor memerlukan catatan native v2 yang valid dan tujuan native yang belum ada. Impor
+mempertahankan registrasi dan ID host, tidak pernah mengonversi kredensial perangkat, tidak pernah
+menimpa penyimpanan native yang ada, dan mempertahankan berkas sumber. Perintah ini
+kemudian menjalankan pemeriksaan model dan pembuatan pada akun yang diimpor; peningkatan
+versi normal tidak memerlukannya. Untuk impor tanpa inferensi, panggil
+`chatgpt_auth.import_preview_credentials()` dari sesi Python lokal.
 
-After a successful import, the earlier preview's file still occupies the Codex
-path. If using the original Codex provider again, use its disconnect control to
-clear that preview record and then complete device-code sign-in. A device token
-already overwritten by the earlier preview cannot be reconstructed. No provider
-configuration is switched automatically.
+Setelah impor berhasil, berkas pratinjau sebelumnya masih menempati path Codex.
+Jika memakai penyedia Codex asli lagi, gunakan kontrol putuskan koneksinya untuk
+menghapus catatan pratinjau itu lalu selesaikan login kode perangkat. Token perangkat
+yang sudah tertimpa oleh pratinjau sebelumnya tidak dapat direkonstruksi. Tidak ada
+konfigurasi penyedia yang beralih secara otomatis.
 
-## Reproducible real-account acceptance
+## Akseptansi akun asli yang dapat direproduksi
 
-The manual script runs the real project entrypoints with a fixed, non-sensitive
-walking-video topic. It is not part of unattended CI and consumes the selected
-account's ChatGPT plan allowance. On a local machine with an eligible account:
+Skrip manual menjalankan entrypoint proyek yang sebenarnya dengan topik video
+jalan kaki yang tetap dan tidak sensitif. Ini bukan bagian dari CI tanpa pengawasan dan
+memakai kuota paket ChatGPT akun yang dipilih. Di mesin lokal dengan akun yang memenuhi syarat:
 
 ```shell
 uv run python scripts/accept_chatgpt_oauth.py --login --disconnect
 ```
 
-Optionally pass `--model <account-listed-slug>` and `--output <report.json>`.
-Without `--model`, the first returned model is used. The default report path is
-`storage/acceptance/chatgpt-native-<UTC timestamp>.json`. The script does not
-change `config.toml` or fall back to another provider. `--disconnect` revokes and
-clears the active native session after successful inference checks.
+Secara opsional berikan `--model <account-listed-slug>` dan `--output <report.json>`.
+Tanpa `--model`, model pertama yang dikembalikan dipakai. Path laporan default adalah
+`storage/acceptance/chatgpt-native-<UTC timestamp>.json`. Skrip tidak mengubah
+`config.toml` atau beralih ke penyedia lain. `--disconnect` mencabut dan
+menghapus sesi native aktif setelah pemeriksaan inferensi berhasil.
 
-The report contains:
+Laporan memuat:
 
-- UTC timestamp, OS/Python, commit and whether the checkout has local changes;
-- whether browser authorization ran and plan permission was granted;
-- account-listed model IDs and the selected model;
-- real `llm.generate_script` and `llm.generate_terms` output, HTTP status,
-  request IDs when supplied, and `response.completed` metadata;
-- forced refresh, registration continuity and a completed post-refresh request;
-- revocation confirmation, local token clearing and rejection of signed-out
-  inference without sending an API request.
+- timestamp UTC, OS/Python, commit, dan apakah checkout memiliki perubahan lokal;
+- apakah otorisasi browser berjalan dan izin paket diberikan;
+- ID model yang terdaftar di akun dan model yang dipilih;
+- keluaran `llm.generate_script` dan `llm.generate_terms` yang nyata, status HTTP,
+  ID permintaan bila ada, dan metadata `response.completed`;
+- penyegaran paksa, kontinuitas registrasi, dan permintaan lanjutan yang selesai setelah penyegaran;
+- konfirmasi pencabutan, penghapusan token lokal, dan penolakan inferensi saat
+  logout tanpa mengirim permintaan API.
 
-Missing request/response IDs are recorded as `null`, never invented. Token
-responses, identity claims, authorization URLs/codes, PKCE values, cookies and
-arbitrary headers are not exported. Request diagnostics are disabled for this
-script; its optional trace uses an allowlist of API metadata. A run without a
-fresh browser login or without disconnect is labeled `partial`, not a full pass.
-If the account cannot authorize, the report records failure without changing
-other providers. Complete a new run after implementation changes; earlier preview
-acceptance is not evidence of the revised provider's live behavior.
+ID permintaan/respons yang tidak ada dicatat sebagai `null`, tidak pernah dikarang. Respons
+token, klaim identitas, URL/kode otorisasi, nilai PKCE, cookie, dan header
+sembarang tidak diekspor. Diagnostik permintaan dinonaktifkan untuk skrip ini;
+trace opsionalnya memakai daftar izin metadata API. Proses tanpa login browser
+baru atau tanpa pemutusan koneksi diberi label `partial`, bukan lulus penuh.
+Jika akun tidak dapat mengotorisasi, laporan mencatat kegagalan tanpa mengubah
+penyedia lain. Lakukan proses baru setelah perubahan implementasi; akseptansi pratinjau
+sebelumnya bukan bukti perilaku langsung penyedia yang telah direvisi.
 
-## Automated regressions
+## Regresi otomatis
 
-Run the original Codex tests and the new native tests together. Native tests use
-synthetic credentials and signed identities. The concurrency suite starts
-independent Python interpreters and a slow local HTTP server to check that the
-UI recovers, failed waits preserve credentials, deadlines are bounded, and a
-contended rotating token is exchanged only once. Acceptance-script tests exercise
-the real LLM entrypoints over synthetic HTTP responses and check report redaction;
-they do not establish eligibility or live API access.
+Jalankan test Codex yang asli dan test native yang baru bersama-sama. Test native memakai
+kredensial dan identitas bertanda tangan sintetis. Rangkaian konkurensi memulai
+interpreter Python independen dan server HTTP lokal yang lambat untuk memeriksa bahwa
+antarmuka pulih, penantian yang gagal mempertahankan kredensial, tenggat terbatas, dan
+token berotasi yang diperebutkan hanya ditukar sekali. Test skrip akseptansi menjalankan
+entrypoint LLM yang sebenarnya lewat respons HTTP sintetis dan memeriksa penyamaran laporan;
+test ini tidak membuktikan kelayakan atau akses API langsung.
 
-## Recorded local acceptance
+## Akseptansi lokal yang tercatat
 
 [Windows / Python 3.11.15, 2026-10-27](validation/chatgpt-native-oauth-windows-2026-10-27.json)
-records a fresh browser authorization, eight account-listed models, completed
-script/keyword generation using `gpt-6.1-sol`, refresh and a completed follow-up
-request, confirmed revocation, and a blocked signed-out request. Response IDs are
-included; the `x-request-id` header was absent and is recorded as `null`.
+mencatat otorisasi browser baru, delapan model yang terdaftar di akun, pembuatan
+naskah/kata kunci yang selesai memakai `gpt-6.1-sol`, penyegaran dan permintaan
+lanjutan yang selesai, pencabutan yang terkonfirmasi, dan permintaan saat logout yang diblokir. ID respons
+disertakan; header `x-request-id` tidak ada dan dicatat sebagai `null`.
 
-The generated script also rendered to an 18.47-second 1080p video using local
-test footage, silent mode and subtitles, with a successful full decode check.
-External TTS and stock-media services were not exercised. Browser checks covered
-provider separation and signed-out settings, while the live model/inference
-checks ran through the acceptance script and real project LLM entrypoints.
-This was an uncommitted working tree based on `8bab424`; the report includes
-source-file hashes to identify the tested implementation.
+Naskah yang dihasilkan juga dirender menjadi video 1080p berdurasi 18,47 detik memakai footage
+uji lokal, mode senyap, dan subtitle, dengan pemeriksaan dekode penuh yang berhasil.
+Layanan TTS eksternal dan media stok tidak diuji. Pemeriksaan browser mencakup
+pemisahan penyedia dan pengaturan saat logout, sedangkan pemeriksaan model/inferensi langsung
+dijalankan lewat skrip akseptansi dan entrypoint LLM proyek yang sebenarnya.
+Ini adalah working tree yang belum di-commit berbasis `8bab424`; laporan menyertakan
+hash berkas sumber untuk mengidentifikasi implementasi yang diuji.

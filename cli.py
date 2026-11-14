@@ -258,11 +258,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "Generate MoneyPrinterTurbo videos without the WebUI.\n\n"
             "Provider settings and credentials are read from config.toml.\n"
             "Default full-video generation requires a configured LLM and Pexels API key.\n"
-            "The default Edge TTS voice requires no API key."
+            "The default VoiceStudio voice requires no API key."
         ),
         epilog="""
 Examples:
-  Generate a complete video with the default Edge TTS voice:
+  Generate a complete video with the default VoiceStudio voice:
     uv run python cli.py --video-subject "How AI is changing everyday life"
 
   Generate from local files. Relative paths use the current working directory;
@@ -508,9 +508,8 @@ Batch manifests:
             f"config.toml, otherwise {DEFAULT_VOICE_NAME}. A saved "
             "[ui].voice_mode of 'none' or 'upload' resolves to no-voice "
             "instead, unless this option is given. "
-            "Use 'no-voice' for silent output. Provider-specific identifiers "
-            "use prefixes such as gemini:, mimo:, elevenlabs:, chatterbox:, "
-            "kokoro:, and voxcpm:"
+            "Use 'no-voice' for silent output. VoiceStudio voices use the "
+            "voicestudio: prefix, for example voicestudio:alloy"
         ),
     )
     audio_group.add_argument(
@@ -538,7 +537,7 @@ Batch manifests:
         help=(
             "existing MP3/WAV/M4A/AAC/FLAC/OGG voiceover; relative paths use the "
             "current working directory. This skips TTS; set subtitle_provider=whisper "
-            "to transcribe it"
+            "to transcribe it with VoiceStudio"
         ),
     )
     audio_group.add_argument(

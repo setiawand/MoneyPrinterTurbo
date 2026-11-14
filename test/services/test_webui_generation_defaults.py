@@ -52,7 +52,7 @@ def test_reusable_generation_settings_survive_a_new_webui_session():
         patch.object(config, "try_save_config", return_value=True),
         patch.object(
             voice,
-            "get_all_azure_voices",
+            "get_voicestudio_voices",
             return_value=["en-US-JennyNeural-Female"],
         ),
     ):
@@ -308,7 +308,7 @@ def test_invalid_saved_generation_settings_fall_back_without_breaking_webui():
         patch.object(config, "try_save_config", return_value=True),
         patch.object(
             voice,
-            "get_all_azure_voices",
+            "get_voicestudio_voices",
             return_value=["en-US-JennyNeural-Female"],
         ),
     ):
@@ -410,7 +410,7 @@ def test_loomloom_tuning_survives_restart_without_persisting_payment_state():
         patch.object(config, "try_save_config", return_value=True),
         patch.object(
             voice,
-            "get_all_azure_voices",
+            "get_voicestudio_voices",
             return_value=["en-US-JennyNeural-Female"],
         ),
     ):
@@ -476,7 +476,7 @@ def test_script_order_constraint_does_not_replace_saved_concat_preference():
         patch.object(config, "try_save_config", return_value=True),
         patch.object(
             voice,
-            "get_all_azure_voices",
+            "get_voicestudio_voices",
             return_value=["en-US-JennyNeural-Female"],
         ),
     ):

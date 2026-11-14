@@ -1,11 +1,12 @@
-# 诊断日志
+# Log Diagnostik
 
-在 WebUI 的 **设置 → 界面设置 → 诊断日志** 中选择日志等级，按需开启
-**记录 API 请求参数**，点击 **应用日志设置**。设置立即作用于当前服务，
-包括正在运行任务的后续日志；同一服务的所有浏览器会话共用该设置。
-开启「隐藏日志」只隐藏界面日志，不会关闭终端输出。
+Di WebUI, buka **Pengaturan → Pengaturan Antarmuka → Log Diagnostik**, pilih level log, lalu
+aktifkan **Catat parameter permintaan API** bila perlu, dan klik **Terapkan pengaturan log**.
+Pengaturan berlaku segera pada layanan saat ini, termasuk log berikutnya dari tugas yang sedang
+berjalan; semua sesi browser pada layanan yang sama memakai pengaturan ini.
+Mengaktifkan "Sembunyikan log" hanya menyembunyikan log di antarmuka, tidak mematikan keluaran terminal.
 
-API、CLI 和 WebUI 使用相同的配置：
+API, CLI, dan WebUI memakai konfigurasi yang sama:
 
 ```toml
 [diagnostics]
@@ -13,28 +14,29 @@ log_level = "INFO"
 log_requests = false
 ```
 
-`log_level` 可选 TRACE、DEBUG、INFO、SUCCESS、WARNING、ERROR、CRITICAL。
-省略时沿用原来的顶层 `log_level`，默认 DEBUG。手工修改文件后需要重启，
-WebUI 的「应用」只即时更新当前进程，不会远程修改其它 API 或 CLI 进程。
+`log_level` dapat berupa TRACE, DEBUG, INFO, SUCCESS, WARNING, ERROR, CRITICAL.
+Jika dihilangkan, nilai `log_level` tingkat atas yang lama dipakai, dengan default DEBUG. Setelah mengubah file secara manual,
+layanan perlu dimulai ulang; tombol "Terapkan" di WebUI hanya memperbarui proses saat ini secara instan dan tidak mengubah
+proses API atau CLI lain dari jarak jauh.
 
-请求追踪是独立开关，在 ERROR 等级下也能开启。它默认关闭，记录内容为：
+Pelacakan permintaan adalah sakelar terpisah dan dapat diaktifkan bahkan pada level ERROR. Defaultnya nonaktif, dan yang dicatat adalah:
 
-- 请求 ID、HTTP 方法、脱敏地址、经过长度限制的请求参数。
-- 返回状态（可取得时）、耗时，或失败的异常类型。
-- LLM SDK 调用参数。此处是 SDK 的输入，不是 SDK 最终发送的原始 JSON；
-  SDK 内部自动重试不会逐次显示。流式请求的耗时只统计到取得响应或流对象，
-  不包含后续下载时间。
+- ID permintaan, metode HTTP, alamat yang disamarkan, dan parameter permintaan yang dibatasi panjangnya.
+- Status respons (bila tersedia), durasi, atau jenis pengecualian saat gagal.
+- Parameter pemanggilan SDK LLM. Ini adalah masukan ke SDK, bukan JSON mentah yang akhirnya dikirim SDK;
+  percobaan ulang otomatis di dalam SDK tidak ditampilkan satu per satu. Durasi permintaan streaming hanya dihitung sampai
+  respons atau objek stream diperoleh, tidak termasuk waktu pengunduhan berikutnya.
 
-覆盖项目显式使用 `requests` 的素材、视频、语音、发布及登录等请求，以及
-OpenAI 兼容、Azure OpenAI、Qwen、Gemini 和 LiteLLM 文案调用。
-不捕获浏览器自身的网络流量、入站 API 正文、CLI 子进程、Edge TTS WebSocket
-或其它 SDK 内部传输。正常应用日志与第三方 SDK 自己的日志等级也不是同一开关。
+Cakupannya meliputi permintaan `requests` yang dipakai proyek secara eksplisit untuk materi, video, suara, publikasi, dan login, serta
+pemanggilan naskah OpenAI-compatible, Azure OpenAI, Qwen, Gemini, dan LiteLLM.
+Tidak mencakup lalu lintas jaringan browser itu sendiri, isi API masuk, subproses CLI, WebSocket Edge TTS,
+atau transportasi internal SDK lainnya. Log aplikasi biasa dan level log SDK pihak ketiga juga bukan sakelar yang sama.
 
-不会记录请求头、响应正文或上传文件内容。密钥、Token、Cookie、密码及签名
-字段会遮盖，URL 查询参数的值统一隐藏，音视频/base64 等内容省略。原始
-非结构化请求体不记录。**提示词和其它业务参数可能出现在日志中**，排查结束后
-请关闭追踪，分享日志前仍需检查其中是否包含私人内容。诊断不会向外部发送日志，
-也不会额外发起、重试或重放请求。
+Header permintaan, isi respons, dan isi file yang diunggah tidak dicatat. Kunci, token, cookie, kata sandi, dan field tanda tangan
+disamarkan, semua nilai parameter query URL disembunyikan, dan konten audio/video/base64 dihilangkan. Isi permintaan mentah
+yang tidak terstruktur tidak dicatat. **Prompt dan parameter bisnis lain dapat muncul di log**, jadi matikan pelacakan
+setelah pemecahan masalah selesai, dan periksa dulu apakah ada konten pribadi sebelum membagikan log. Diagnostik tidak mengirim log ke pihak luar,
+dan tidak membuat, mencoba ulang, atau memutar ulang permintaan tambahan.
 
-CLI 日志仍输出到 stderr，stdout 保持机器可读 JSON。WebUI 任务日志沿用现有
-线程归属过滤和条数上限，不会因为切换等级移除正在运行任务的日志处理器。
+Log CLI tetap keluar ke stderr, sedangkan stdout tetap berupa JSON yang dapat dibaca mesin. Log tugas WebUI memakai
+filter kepemilikan thread dan batas jumlah baris yang ada, dan tidak melepas handler log tugas yang sedang berjalan saat level diganti.

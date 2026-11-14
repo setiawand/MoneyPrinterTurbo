@@ -15,13 +15,14 @@ PUNCTUATIONS = [
     "：",
     "！",
     "...",
-    # 阿拉伯语常用标点也应作为自然断句点，避免脚本文本和 edge-tts
-    # 返回的字幕停顿边界不一致，导致后续逐行匹配失败。
+    # Tanda baca Arab yang umum juga harus menjadi titik pemisah kalimat alami,
+    # agar naskah dan batas jeda subtitle dari TTS/ASR tidak berbeda sehingga
+    # pencocokan baris demi baris gagal.
     "،",
     "؛",
     "؟",
     # Full stops of scripts that do not use ".": Devanagari and Bengali danda,
-    # Urdu, Burmese, Khmer and Ethiopic. Edge TTS word boundaries leave these
+    # Urdu, Burmese, Khmer and Ethiopic. TTS word boundaries leave these
     # out or attach them to the last word, so they must end script lines too.
     "।",
     "॥",

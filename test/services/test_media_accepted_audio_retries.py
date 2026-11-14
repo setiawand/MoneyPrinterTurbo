@@ -17,21 +17,18 @@ def accepted_audio():
 
 
 def invoke(provider, output):
-    if provider == 'siliconflow':
-        return voice.siliconflow_tts('Hello world.', 'test-model', 'test-voice', 1.0, str(output))
     return voice._openai_compatible_tts(
         'test-provider', 'http://127.0.0.1:9999/v1', '', 'test-model', 'test-voice',
         'Hello world.', 1.0, str(output),
     )
 
 
-@pytest.mark.parametrize('provider', ['siliconflow', 'compatible'])
+@pytest.mark.parametrize('provider', ['compatible'])
 def test_accepted_audio_publication_failure_does_not_repeat_post(tmp_path, monkeypatch, accepted_audio, provider):
     output = tmp_path / 'voice.mp3'
     output.write_bytes(b'previous complete narration')
     post = Mock(return_value=accepted_audio)
     monkeypatch.setattr(voice.requests, 'post', post)
-    monkeypatch.setitem(voice.config.siliconflow, 'api_key', 'test-local-key')
 
     def cannot_publish(*args):
         raise OSError('destination is unavailable')
@@ -43,12 +40,11 @@ def test_accepted_audio_publication_failure_does_not_repeat_post(tmp_path, monke
     assert list(tmp_path.iterdir()) == [output]
 
 
-@pytest.mark.parametrize('provider', ['siliconflow', 'compatible'])
+@pytest.mark.parametrize('provider', ['compatible'])
 def test_connect_timeout_keeps_existing_retry_and_success_policy(tmp_path, monkeypatch, accepted_audio, provider):
     output = tmp_path / 'voice.mp3'
     post = Mock(side_effect=[requests.ConnectTimeout('before connection'), accepted_audio])
     monkeypatch.setattr(voice.requests, 'post', post)
-    monkeypatch.setitem(voice.config.siliconflow, 'api_key', 'test-local-key')
 
     assert invoke(provider, output) is not None
     assert post.call_count == 2

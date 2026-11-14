@@ -1,20 +1,20 @@
-# MoneyPrinterTurbo — Official Python Package
+# MoneyPrinterTurbo — Paket Python Resmi
 
-**mpt is the official Python distribution of
-[MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo), maintained by
+**mpt adalah distribusi Python resmi dari
+[MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo), dikelola oleh
 [harry0703](https://pypi.org/user/harry0703/).**
 
-Install the official package with **`python -m pip install mpt`**.
-The separately named `MoneyPrinterTurbo` package on PyPI is a third-party
-distribution and is not maintained by this project.
+Pasang paket resmi dengan **`python -m pip install mpt`**.
+Paket bernama `MoneyPrinterTurbo` yang terpisah di PyPI adalah distribusi
+pihak ketiga dan tidak dikelola oleh proyek ini.
 
-MoneyPrinterTurbo generates short videos from a topic or a prepared script.
-It combines local or online materials, voice narration, subtitles, and background
-music. Use the WebUI interactively or run the same video pipeline from the CLI.
+MoneyPrinterTurbo membuat video pendek dari sebuah topik atau naskah yang sudah disiapkan.
+Ia menggabungkan materi lokal atau online, narasi suara, subtitle, dan musik latar.
+Gunakan WebUI secara interaktif atau jalankan pipeline video yang sama dari CLI.
 
-## Install
+## Pemasangan
 
-Requires Python 3.11 or later. A virtual environment is recommended:
+Memerlukan Python 3.11 atau lebih baru. Virtual environment disarankan:
 
 ```sh
 python -m venv .venv
@@ -24,20 +24,20 @@ source .venv/bin/activate
 python -m pip install mpt
 ```
 
-## Start the WebUI
+## Menjalankan WebUI
 
 ```sh
 mpt webui
 ```
 
-The WebUI listens on localhost and opens in your browser. To select a port or run
-without opening a browser:
+WebUI mendengarkan di localhost dan terbuka di browser Anda. Untuk memilih port atau menjalankan
+tanpa membuka browser:
 
 ```sh
 mpt webui --port 8503 --headless
 ```
 
-## Generate a video from the CLI
+## Membuat video dari CLI
 
 ```sh
 mpt cli --help
@@ -47,30 +47,30 @@ mpt cli --video-script "Your complete script." \
   --no-subtitle-enabled --bgm-type none
 ```
 
-Local images and videos are supported. Online language models, stock media,
-and speech providers require the appropriate configuration and network access.
-Choose providers and enter credentials in the WebUI settings or `config.toml`.
+Gambar dan video lokal didukung. Model bahasa online, media stok,
+dan penyedia suara memerlukan konfigurasi yang sesuai dan akses jaringan.
+Pilih penyedia dan masukkan kredensial di pengaturan WebUI atau `config.toml`.
 
-The package includes default fonts, background music, and an FFmpeg binary through
-imageio-ffmpeg. An installed system FFmpeg takes precedence. Whisper models are
-loaded on demand.
+Paket ini menyertakan font default, musik latar, dan biner FFmpeg lewat
+imageio-ffmpeg. FFmpeg sistem yang terpasang diprioritaskan. Model Whisper
+dimuat sesuai kebutuhan.
 
-## Configuration and generated files
+## Konfigurasi dan berkas hasil
 
-The installed application keeps configuration, credentials, uploads, and generated
-videos in your user directory:
+Aplikasi yang terpasang menyimpan konfigurasi, kredensial, unggahan, dan video
+hasil di direktori pengguna Anda:
 
-| System | Default directory |
+| Sistem | Direktori default |
 | --- | --- |
 | macOS | `~/Library/Application Support/MoneyPrinterTurbo` |
 | Windows | `%LOCALAPPDATA%\MoneyPrinterTurbo` |
-| Linux | `~/.local/share/MoneyPrinterTurbo` (or `$XDG_DATA_HOME/MoneyPrinterTurbo`) |
+| Linux | `~/.local/share/MoneyPrinterTurbo` (atau `$XDG_DATA_HOME/MoneyPrinterTurbo`) |
 
-Set `MPT_HOME` before starting the application to choose another directory.
-Configuration is stored in `config.toml`; generated videos are under
-`storage/tasks/<task-id>/`. Existing user configuration and resources are preserved
-when the application starts or upgrades.
+Atur `MPT_HOME` sebelum memulai aplikasi untuk memilih direktori lain.
+Konfigurasi disimpan di `config.toml`; video hasil berada di bawah
+`storage/tasks/<task-id>/`. Konfigurasi dan sumber daya pengguna yang ada dipertahankan
+saat aplikasi dimulai atau ditingkatkan.
 
-See the [project documentation](https://github.com/harry0703/MoneyPrinterTurbo)
-for supported providers and advanced options. Report problems through
+Lihat [dokumentasi proyek](https://github.com/harry0703/MoneyPrinterTurbo)
+untuk penyedia yang didukung dan opsi lanjutan. Laporkan masalah lewat
 [GitHub Issues](https://github.com/harry0703/MoneyPrinterTurbo/issues).

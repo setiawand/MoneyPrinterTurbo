@@ -339,7 +339,7 @@ def split_string_by_punctuations(s, *, split_thai_and_lao_sentences=True):
             and unicodedata.east_asian_width(previous_char) != "W"
             and unicodedata.east_asian_width(next_char) != "W"
         ):
-            # Edge TTS reads "U.S.", "e.g.", "9 a.m." and "example.com" as one word each. Next to a
+            # TTS reads "U.S.", "e.g.", "9 a.m." and "example.com" as one word each. Next to a
             # Chinese, Japanese or Korean character the dot still ends the sentence, as in "很好.我们".
             txt += char
             continue
@@ -350,7 +350,7 @@ def split_string_by_punctuations(s, *, split_thai_and_lao_sentences=True):
             and next_char.isdigit()
             and unicodedata.east_asian_width(previous_char) != "W"
         ):
-            # Edge TTS usually returns "No.1", "Vol.2" and "Fig.3" as one word. After a Chinese,
+            # TTS usually returns "No.1", "Vol.2" and "Fig.3" as one word. After a Chinese,
             # Japanese or Korean character the dot still ends the sentence, as in "很好.2025年".
             txt += char
             continue
@@ -362,15 +362,16 @@ def split_string_by_punctuations(s, *, split_thai_and_lao_sentences=True):
             continue
 
         if char in (":", "：") and previous_char.isdigit() and next_char.isdigit():
-            # Edge TTS returns a clock time such as "10:30" or "10：30" as one word, so it is no line break.
+            # TTS returns a clock time such as "10:30" or "10：30" as one word, so it is no line break.
             txt += char
             continue
 
         if char in (",", "，", "、") and previous_char.isdigit() and next_char.isdigit():
-            # 数字中间的逗号和顿号不是断句符，例如 "1,000 years"、"1，299元"、"第1、2名"。
-            # Edge TTS 的 word boundary 通常会把这种数字整体作为连续内容返回；
-            # 如果这里拆成 "1" 和 "000 years"，后续字幕聚合会无法匹配脚本原文，
-            # 整段字幕都不会生成。
+            # Koma di tengah angka bukan pemisah kalimat, misalnya "1,000 years",
+            # "1，299元", "第1、2名". Batas kata TTS biasanya mengembalikan angka
+            # seperti itu sebagai satu kesatuan; bila dipecah menjadi "1" dan
+            # "000 years", agregasi subtitle tidak dapat mencocokkan naskah asli
+            # dan seluruh subtitle gagal dibuat.
             txt += char
             continue
 
@@ -518,7 +519,7 @@ def parse_script_with_pauses(text: str) -> list[tuple[str, Any]]:
     return segments
 
 
-# Emoji are pictures, not words: Edge TTS reads their names aloud ("chart
+# Emoji are pictures, not words: TTS reads their names aloud ("chart
 # increasing") and the subtitle fonts draw them as boxes. These are the code
 # points drawn as emoji even without U+FE0F (Emoji_Presentation in Unicode's
 # emoji-data.txt), with whole pictograph blocks so that new emoji are covered.
@@ -645,10 +646,11 @@ def normalize_script_for_subtitle_matching(video_script: str) -> str:
     """
     清理字幕匹配前的脚本文本。
 
-    用户可能手动输入 Markdown 分隔符、标题强调或 `_` 这类格式符号。
-    这些字符通常不会出现在 TTS/Whisper 的识别结果里；如果继续参与
-    字幕逐行匹配，脚本行数量会大于真实字幕行数量，最终可能补出
-    `00:00:00,000 --> 00:00:00,000`，导致剪辑软件无法导入 SRT。
+    Pengguna dapat mengetik pemisah Markdown, penekanan judul, atau simbol format
+    seperti `_`. Karakter ini biasanya tidak muncul pada hasil TTS/ASR; bila tetap
+    ikut pencocokan baris subtitle, jumlah baris naskah melebihi baris subtitle
+    sebenarnya sehingga dapat muncul `00:00:00,000 --> 00:00:00,000` yang membuat
+    perangkat lunak penyunting gagal mengimpor SRT.
     Emoji are left out as well: tts() does not speak them.
     """
     video_script = remove_emoji(remove_pause_tags(video_script or ""))

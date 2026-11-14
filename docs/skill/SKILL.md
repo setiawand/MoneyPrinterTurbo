@@ -8,69 +8,69 @@ metadata:
   upstream: "https://github.com/harry0703/MoneyPrinterTurbo"
 ---
 
-# MoneyPrinterTurbo Video Generation
+# Pembuatan Video MoneyPrinterTurbo
 
-The user only needs to provide a video topic or script. Complete installation, configuration reuse, generation, waiting, and final MP4 delivery automatically. Do not stop after giving instructions or commands.
+Pengguna hanya perlu memberikan topik atau naskah video. Selesaikan pemasangan, pemakaian ulang konfigurasi, pembuatan, penantian, dan pengiriman MP4 akhir secara otomatis. Jangan berhenti setelah hanya memberi petunjuk atau perintah.
 
-## Required Behavior
+## Perilaku Wajib
 
-1. Ask the user only for required API credentials that are missing, rejected, or unusable. Combine all required credentials into one request.
-2. Do not ask for confirmation before installing, generating, waiting, using defaults, or returning the result.
-3. Do not create or repeatedly update a detailed plan for a standard generation request. Send one short progress update and execute.
-4. Run the helper as one foreground command with a timeout of at least 20 minutes.
-5. Never poll with `sleep`, `echo`, `ps`, repeated `ls`, or repeated `tail`. If the terminal returns a resumable session ID, continue waiting on that same session.
-6. Do not read the full log after success. Read only the short reported error or the relevant log tail after failure.
-7. Never print API keys, tokens, the full `config.toml`, or credential-bearing configuration fragments.
+1. Tanyakan kepada pengguna hanya kredensial API yang wajib dan hilang, ditolak, atau tidak dapat dipakai. Gabungkan semua kredensial yang diperlukan dalam satu permintaan.
+2. Jangan meminta konfirmasi sebelum memasang, membuat, menunggu, memakai default, atau mengembalikan hasil.
+3. Jangan membuat atau berulang kali memperbarui rencana terperinci untuk permintaan pembuatan standar. Kirim satu pembaruan progres singkat lalu jalankan.
+4. Jalankan helper sebagai satu perintah foreground dengan timeout minimal 20 menit.
+5. Jangan melakukan polling dengan `sleep`, `echo`, `ps`, `ls` berulang, atau `tail` berulang. Jika terminal mengembalikan ID sesi yang dapat dilanjutkan, lanjutkan menunggu pada sesi yang sama.
+6. Jangan membaca seluruh log setelah berhasil. Baca hanya error singkat yang dilaporkan atau bagian akhir log yang relevan setelah gagal.
+7. Jangan pernah mencetak kunci API, token, `config.toml` lengkap, atau potongan konfigurasi yang memuat kredensial.
 
-## Defaults
+## Default
 
-Unless the user requests otherwise, generate one Chinese `9:16` portrait video with Pexels footage, the default Chinese Edge TTS voice, subtitles, and background music. Install MoneyPrinterTurbo under the user's home directory.
+Kecuali pengguna meminta lain, buat satu video potret `9:16` berbahasa Mandarin dengan footage Pexels, suara Edge TTS Mandarin default, subtitle, dan musik latar. Pasang MoneyPrinterTurbo di bawah direktori home pengguna.
 
-## Execution
+## Eksekusi
 
-### 1. Locate the helper
+### 1. Temukan helper
 
-Resolve `SKILL_DIR` from this `SKILL.md` file. The helper is the adjacent `mpt_agent.py`. Set the terminal tool's working directory to `SKILL_DIR` and invoke the helper by its relative filename. Do not put the absolute helper path in the command, and do not run an extra `ls` or `dir` check.
+Tentukan `SKILL_DIR` dari berkas `SKILL.md` ini. Helper-nya adalah `mpt_agent.py` di sebelahnya. Atur direktori kerja alat terminal ke `SKILL_DIR` dan panggil helper dengan nama berkas relatifnya. Jangan menaruh path absolut helper di perintah, dan jangan menjalankan pemeriksaan `ls` atau `dir` tambahan.
 
-This is required on Windows because some agent terminal validators remove backslashes from absolute paths embedded in commands. Using `mpt_agent.py` with `workdir=SKILL_DIR` avoids that failure and works on both macOS and Windows.
+Ini wajib di Windows karena beberapa validator terminal agent menghapus backslash dari path absolut yang tertanam di perintah. Memakai `mpt_agent.py` dengan `workdir=SKILL_DIR` menghindari kegagalan itu dan berfungsi di macOS maupun Windows.
 
-If the client loaded only the remote `SKILL.md`, download the helper from the official repository to a temporary directory, then use that temporary directory as the command working directory:
+Jika klien hanya memuat `SKILL.md` jarak jauh, unduh helper dari repositori resmi ke direktori sementara, lalu pakai direktori sementara itu sebagai direktori kerja perintah:
 
 ```text
 https://raw.githubusercontent.com/harry0703/MoneyPrinterTurbo/main/docs/skill/mpt_agent.py
 ```
 
-### 2. Run the helper
+### 2. Jalankan helper
 
-Do not run a separate `uv --version` preflight. Run the helper directly. If the shell explicitly reports that uv is missing, install uv and retry the same helper command once.
+Jangan menjalankan pemeriksaan awal `uv --version` tersendiri. Jalankan helper secara langsung. Jika shell secara eksplisit melaporkan uv tidak ada, pasang uv lalu coba lagi perintah helper yang sama sekali saja.
 
-macOS uv installation:
+Pemasangan uv di macOS:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Windows PowerShell uv installation:
+Pemasangan uv di Windows PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-Use this foreground command with `workdir=SKILL_DIR` and a timeout of at least 20 minutes:
+Gunakan perintah foreground ini dengan `workdir=SKILL_DIR` dan timeout minimal 20 menit:
 
 ```bash
-uv run --no-project --python 3.11 python mpt_agent.py --subject "<video topic>"
+uv run --no-project --python 3.11 python mpt_agent.py --subject "<topik video>"
 ```
 
-On Windows, do not try absolute backslash paths, absolute forward-slash paths, or copies in the workspace before this relative command. If a terminal tool reports `referenced_script_path_missing`, verify that its working directory is exactly `SKILL_DIR` and retry the relative command once. Do not cycle through path variants.
+Di Windows, jangan mencoba path absolut dengan backslash, path absolut dengan forward slash, atau salinan di workspace sebelum perintah relatif ini. Jika alat terminal melaporkan `referenced_script_path_missing`, pastikan direktori kerjanya persis `SKILL_DIR` dan coba lagi perintah relatif sekali saja. Jangan berputar-putar mencoba varian path.
 
-Do not use Docker, Conda, system pip, or a manually managed virtual environment.
+Jangan memakai Docker, Conda, pip sistem, atau virtual environment yang dikelola manual.
 
-## Exit Handling
+## Penanganan Kode Keluar
 
-### Exit code 0: deliver the result
+### Kode keluar 0: sampaikan hasilnya
 
-Successful output has this form:
+Keluaran yang berhasil berbentuk:
 
 ```text
 MPT_RESULT
@@ -80,28 +80,28 @@ LOG_FILE=<absolute path>/run-<task_id>.log
 RESULT_FILE=<absolute path>/latest-result.json
 ```
 
-`mpt_agent.py` emits `VIDEO_FILE` only after confirming that the file exists and is non-empty. Do not run another `ls`, `stat`, or file validation command.
+`mpt_agent.py` hanya mengeluarkan `VIDEO_FILE` setelah memastikan berkas ada dan tidak kosong. Jangan menjalankan `ls`, `stat`, atau perintah validasi berkas lain.
 
-If the terminal reports `exitCode=0` but truncates the output or returns a history-file reference without `MPT_RESULT`, do not infer failure and do not inspect old logs. Read this file once:
+Jika terminal melaporkan `exitCode=0` tetapi keluarannya terpotong atau mengembalikan rujukan berkas riwayat tanpa `MPT_RESULT`, jangan menyimpulkan gagal dan jangan memeriksa log lama. Baca berkas ini sekali:
 
 ```text
 ~/MoneyPrinterTurbo/.agent-logs/moneyprinterturbo-video/latest-result.json
 ```
 
-Treat `status=completed` as success. Return only the absolute video path and a concise description, for example:
+Anggap `status=completed` sebagai berhasil. Kembalikan hanya path absolut video dan deskripsi ringkas, misalnya:
 
 ```text
-The video is ready.
-Topic: ...
-Video file: /absolute/path/to/final-1.mp4
-Summary: Chinese portrait video with voice-over, subtitles, and background music.
+Video sudah siap.
+Topik: ...
+Berkas video: /absolute/path/to/final-1.mp4
+Ringkasan: Video potret berbahasa Mandarin dengan narasi, subtitle, dan musik latar.
 ```
 
-### Exit code 10: request credentials once
+### Kode keluar 10: minta kredensial satu kali
 
-`MPT_NEEDS_INPUT` includes only the required fields, recommended LLM providers and signup links, custom OpenAI-compatible requirements, and material-provider signup links. Ask only for the listed values and do not request credentials already found in `config.toml`.
+`MPT_NEEDS_INPUT` hanya memuat field yang diperlukan, penyedia LLM yang direkomendasikan beserta tautan pendaftaran, persyaratan OpenAI-compatible kustom, dan tautan pendaftaran penyedia materi. Tanyakan hanya nilai yang tercantum dan jangan meminta kredensial yang sudah ada di `config.toml`.
 
-After the user responds, rerun the same foreground command with only the required environment variables:
+Setelah pengguna menjawab, jalankan ulang perintah foreground yang sama hanya dengan variabel lingkungan yang diperlukan:
 
 ```text
 MPT_LLM_PROVIDER
@@ -117,54 +117,54 @@ MPT_INFISTAR_VIDEO_API_KEY
 MPT_JALAPENO_VIDEO_API_KEY
 ```
 
-When `SEEDANCE_CHARGE_CONFIRMATION_REQUIRED` is present, explain that every
-generated Seedance clip creates a paid Ark task. Only after the user explicitly
-confirms, rerun with `--confirm-seedance-charge`; never add this flag silently.
+Bila `SEEDANCE_CHARGE_CONFIRMATION_REQUIRED` muncul, jelaskan bahwa setiap
+klip Seedance yang dihasilkan membuat tugas Ark berbayar. Hanya setelah pengguna secara eksplisit
+mengonfirmasi, jalankan ulang dengan `--confirm-seedance-charge`; jangan pernah menambahkan flag ini secara diam-diam.
 
-When `WAVESPEED_CHARGE_CONFIRMATION_REQUIRED` is present, explain that every
-generated WaveSpeed clip is billed per request by WaveSpeed. Only after the user
-explicitly confirms, rerun with `--confirm-wavespeed-charge`; never add this
-flag silently.
+Bila `WAVESPEED_CHARGE_CONFIRMATION_REQUIRED` muncul, jelaskan bahwa setiap
+klip WaveSpeed yang dihasilkan ditagih per permintaan oleh WaveSpeed. Hanya setelah pengguna
+secara eksplisit mengonfirmasi, jalankan ulang dengan `--confirm-wavespeed-charge`; jangan pernah menambahkan
+flag ini secara diam-diam.
 
-When `OFOX_CHARGE_CONFIRMATION_REQUIRED` is present, explain that every
-generated OFox clip creates a paid task. Only after the user explicitly
-confirms, rerun with `--confirm-ofox-charge`; never add this flag silently.
+Bila `OFOX_CHARGE_CONFIRMATION_REQUIRED` muncul, jelaskan bahwa setiap
+klip OFox yang dihasilkan membuat tugas berbayar. Hanya setelah pengguna secara eksplisit
+mengonfirmasi, jalankan ulang dengan `--confirm-ofox-charge`; jangan pernah menambahkan flag ini secara diam-diam.
 
-When `METASO_MINIMAX_CHARGE_CONFIRMATION_REQUIRED` is present, explain that
-every generated MiniMax H3 clip creates a paid Metaso task. Only after the user
-explicitly confirms, rerun with `--confirm-metaso-minimax-charge`; never add
-this flag silently.
+Bila `METASO_MINIMAX_CHARGE_CONFIRMATION_REQUIRED` muncul, jelaskan bahwa
+setiap klip MiniMax H3 yang dihasilkan membuat tugas Metaso berbayar. Hanya setelah pengguna
+secara eksplisit mengonfirmasi, jalankan ulang dengan `--confirm-metaso-minimax-charge`; jangan pernah menambahkan
+flag ini secara diam-diam.
 
-When `MUAPI_CHARGE_CONFIRMATION_REQUIRED` is present, explain that every
-generated MuAPI clip creates a paid task. Only after the user explicitly
-confirms, rerun with `--confirm-muapi-charge`; never add this flag silently.
+Bila `MUAPI_CHARGE_CONFIRMATION_REQUIRED` muncul, jelaskan bahwa setiap
+klip MuAPI yang dihasilkan membuat tugas berbayar. Hanya setelah pengguna secara eksplisit
+mengonfirmasi, jalankan ulang dengan `--confirm-muapi-charge`; jangan pernah menambahkan flag ini secara diam-diam.
 
-When `INFISTAR_CHARGE_CONFIRMATION_REQUIRED` is present, explain that every
-generated Infistar clip creates a paid task. Only after the user explicitly
-confirms, rerun with `--confirm-infistar-charge`; never add this flag silently.
-Use the dedicated video key, separate from the Infistar LLM key.
+Bila `INFISTAR_CHARGE_CONFIRMATION_REQUIRED` muncul, jelaskan bahwa setiap
+klip Infistar yang dihasilkan membuat tugas berbayar. Hanya setelah pengguna secara eksplisit
+mengonfirmasi, jalankan ulang dengan `--confirm-infistar-charge`; jangan pernah menambahkan flag ini secara diam-diam.
+Gunakan kunci video khusus, terpisah dari kunci LLM Infistar.
 
-When `JALAPENO_CHARGE_CONFIRMATION_REQUIRED` is present, explain that every
-generated Jalapeno Cloud clip creates a paid task. After the user confirms,
-rerun with `--confirm-jalapeno-charge`. An empty video key reuses the
-configured Jalapeno Cloud LLM key; a dedicated video key takes priority.
+Bila `JALAPENO_CHARGE_CONFIRMATION_REQUIRED` muncul, jelaskan bahwa setiap
+klip Jalapeno Cloud yang dihasilkan membuat tugas berbayar. Setelah pengguna mengonfirmasi,
+jalankan ulang dengan `--confirm-jalapeno-charge`. Kunci video yang kosong memakai ulang
+kunci LLM Jalapeno Cloud yang dikonfigurasi; kunci video khusus diprioritaskan.
 
-### Exit code 1: repair or report
+### Kode keluar 1: perbaiki atau laporkan
 
-Use `MPT_ERROR` and `LOG_FILE` to repair a recoverable problem and retry once. Ask the user only if the repair requires a new API key. If the retry fails, report the failed stage, a short error, and the log path.
+Gunakan `MPT_ERROR` dan `LOG_FILE` untuk memperbaiki masalah yang dapat dipulihkan dan coba lagi sekali. Tanyakan kepada pengguna hanya jika perbaikan memerlukan kunci API baru. Jika percobaan ulang gagal, laporkan tahap yang gagal, error singkat, dan path log.
 
-A terminal-tool path validation error is not a video-generation failure because the helper did not start. Correct the working directory and retry the relative command once. Never ask the user to copy `mpt_agent.py`, run commands manually, or confirm whether the agent should continue.
+Error validasi path pada alat terminal bukan kegagalan pembuatan video karena helper belum dimulai. Perbaiki direktori kerja dan coba lagi perintah relatif sekali saja. Jangan pernah meminta pengguna menyalin `mpt_agent.py`, menjalankan perintah secara manual, atau mengonfirmasi apakah agent boleh melanjutkan.
 
-## Configuration and Background Fallback
+## Konfigurasi dan Cadangan Latar Belakang
 
-The helper may read the complete local `config.toml` to reuse existing settings, but it must never print its contents. It reuses a working LLM provider automatically and validates configured Pexels keys through the authenticated My Collections endpoint before generation.
+Helper boleh membaca `config.toml` lokal secara lengkap untuk memakai ulang pengaturan yang ada, tetapi tidak boleh mencetak isinya. Helper memakai ulang penyedia LLM yang berfungsi secara otomatis dan memvalidasi kunci Pexels yang dikonfigurasi lewat endpoint My Collections yang terautentikasi sebelum pembuatan.
 
-Use background mode only if the agent platform cannot wait for a foreground process. Wait for the platform's process-completion notification without polling, then read `latest-result.json` once.
+Gunakan mode latar belakang hanya jika platform agent tidak dapat menunggu proses foreground. Tunggu notifikasi proses selesai dari platform tanpa polling, lalu baca `latest-result.json` sekali.
 
-## Scope
+## Cakupan
 
-- Support macOS and Windows only.
-- Use uv and the MoneyPrinterTurbo CLI only.
-- Do not start Docker, WebUI, or API services.
-- Do not run multiple video jobs concurrently.
-- Pass additional video requirements after `--`. Run `cli.py --help` once only when an unfamiliar option must be verified.
+- Hanya mendukung macOS dan Windows.
+- Hanya gunakan uv dan CLI MoneyPrinterTurbo.
+- Jangan memulai layanan Docker, WebUI, atau API.
+- Jangan menjalankan beberapa job video secara bersamaan.
+- Berikan kebutuhan video tambahan setelah `--`. Jalankan `cli.py --help` sekali saja hanya ketika opsi yang belum dikenal perlu diverifikasi.

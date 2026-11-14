@@ -561,9 +561,6 @@ def generate_audio(
     voice_preview=None,
     *,
     allow_server_file_input: bool = False,
-    voxcpm_reference_audio: bytes | None = None,
-    voxcpm_prompt_audio: bytes | None = None,
-    voxcpm_prompt_text: str = "",
 ):
     """
     Generate audio for the video script.
@@ -611,11 +608,6 @@ def generate_audio(
             "voice_rate": params.voice_rate,
             "voice_file": audio_file,
         }
-        if voxcpm_reference_audio is not None:
-            tts_kwargs["voxcpm_reference_audio"] = voxcpm_reference_audio
-        if voxcpm_prompt_audio is not None:
-            tts_kwargs["voxcpm_prompt_audio"] = voxcpm_prompt_audio
-            tts_kwargs["voxcpm_prompt_text"] = voxcpm_prompt_text
         sub_maker = voice.tts(**tts_kwargs)
         if sub_maker is None:
             _mark_task_failed(
@@ -624,13 +616,13 @@ def generate_audio(
                 "failed to synthesize audio; verify the selected voice and TTS connectivity",
             )
             return None, None, None
-        # Measure the real written audio_file, not sub_maker.cues[-1].end:
-        # the latter is the last WORD BOUNDARY, and TTS leaves a fixed tail
-        # past it (Edge TTS: ~0.88s at any length - 19% of a 7-word clip but
-        # 1.4% of a 153-word one, so short scripts suffer most). The
-        # under-count sizes paid generate_bgm() calls, is reported as
-        # audio_duration to the API/WebUI, and under-sources
-        # download_videos() material, scaled by video_count.
+        # Ukur berkas audio yang benar-benar ditulis, bukan sub_maker.cues[-1].end:
+        # yang terakhir adalah BATAS KATA terakhir, dan TTS menyisakan ekor tetap
+        # setelahnya (sekitar 0,88 dtk berapa pun panjangnya: 19% dari klip 7 kata
+        # tetapi hanya 1,4% dari 153 kata, jadi naskah pendek paling terdampak).
+        # Durasi yang terhitung kurang membuat panggilan generate_bgm() berbayar
+        # terlalu pendek, dilaporkan sebagai audio_duration ke API/WebUI, dan
+        # membuat materi download_videos() kurang, dikalikan video_count.
         file_duration = voice.get_audio_duration(audio_file)
         audio_duration = math.ceil(
             file_duration if file_duration > 0 else voice.get_audio_duration(sub_maker)
@@ -665,7 +657,7 @@ def generate_subtitle(task_id, params, video_script, sub_maker, audio_file):
         return ""
 
     final_subtitle_path = path.join(utils.task_dir(task_id), "subtitle.srt")
-    subtitle_provider = config.app.get("subtitle_provider", "edge").strip().lower()
+    subtitle_provider = config.app.get("subtitle_provider", "whisper").strip().lower()
     logger.info(f"\n\n## generating subtitle, provider: {subtitle_provider}")
 
     if not subtitle_provider:
@@ -673,9 +665,10 @@ def generate_subtitle(task_id, params, video_script, sub_maker, audio_file):
         return ""
 
     if sub_maker is None and subtitle_provider != "whisper":
-        # 自定义音频不会经过 TTS，因此没有 Edge/Azure 等 TTS 返回的
-        # sub_maker 时间轴。只有 Whisper 可以直接从音频文件转写字幕；
-        # 其他字幕提供方继续保持原有行为，避免生成错误的空时间轴。
+        # Audio kustom tidak melewati TTS, jadi tidak ada timeline sub_maker.
+        # Hanya ASR (whisper/VoiceStudio) yang dapat mentranskripsi subtitle
+        # langsung dari berkas audio; penyedia lain tetap seperti semula agar
+        # tidak menghasilkan timeline kosong yang salah.
         logger.warning(
             "subtitle maker is missing, skip subtitle generation for provider: "
             f"{subtitle_provider}"
@@ -694,10 +687,10 @@ def generate_subtitle(task_id, params, video_script, sub_maker, audio_file):
                 word_level=is_word_level,
             )
             if not os.path.exists(subtitle_path):
-                # Edge 字幕偶尔会因为时间轴与文案无法匹配而没有产出文件。这里不能
-                # 自动切换到 Whisper，否则首次失败会在用户不知情的情况下下载数 GB
-                # 的模型。只有显式配置 Whisper 时才允许加载模型，Edge 失败则保留
-                # 无字幕视频并记录原因，避免意外的网络和磁盘开销。
+                # Subtitle "edge" kadang tidak menghasilkan berkas karena timeline tidak
+                # cocok dengan naskah. Jangan otomatis beralih ke ASR: pengguna tidak
+                # meminta transkripsi tambahan. Simpan video tanpa subtitle dan catat
+                # alasannya.
                 logger.warning(
                     "edge subtitle generation did not produce a subtitle file; "
                     "skip subtitles without falling back to whisper"
@@ -1554,9 +1547,6 @@ def _run_pipeline(
     voice_preview: dict | None = None,
     loomloom_video_request: loomloom.LoomLoomConfirmedVideoRequest | None = None,
     allow_server_file_input: bool = False,
-    voxcpm_reference_audio: bytes | None = None,
-    voxcpm_prompt_audio: bytes | None = None,
-    voxcpm_prompt_text: str = "",
     jalapeno_video_endpoint: volcengine_seedance.SeedanceEndpoint | None = None,
     codex_image_context: codex_image.CodexImageContext | None = None,
 ):
@@ -1778,11 +1768,6 @@ def _run_pipeline(
         "voice_preview": voice_preview,
         "allow_server_file_input": allow_server_file_input,
     }
-    if voxcpm_reference_audio is not None:
-        generate_audio_kwargs["voxcpm_reference_audio"] = voxcpm_reference_audio
-    if voxcpm_prompt_audio is not None:
-        generate_audio_kwargs["voxcpm_prompt_audio"] = voxcpm_prompt_audio
-        generate_audio_kwargs["voxcpm_prompt_text"] = voxcpm_prompt_text
     audio_file, audio_duration, sub_maker = generate_audio(
         task_id,
         params,
@@ -1989,9 +1974,6 @@ def start(
     voice_preview: dict | None = None,
     loomloom_video_request: loomloom.LoomLoomConfirmedVideoRequest | None = None,
     allow_server_file_input: bool = False,
-    voxcpm_reference_audio: bytes | None = None,
-    voxcpm_prompt_audio: bytes | None = None,
-    voxcpm_prompt_text: str = "",
     jalapeno_video_endpoint: volcengine_seedance.SeedanceEndpoint | None = None,
     codex_image_context: codex_image.CodexImageContext | None = None,
 ):
@@ -2010,9 +1992,6 @@ def start(
                 voice_preview=voice_preview,
                 loomloom_video_request=loomloom_video_request,
                 allow_server_file_input=allow_server_file_input,
-                voxcpm_reference_audio=voxcpm_reference_audio,
-                voxcpm_prompt_audio=voxcpm_prompt_audio,
-                voxcpm_prompt_text=voxcpm_prompt_text,
                 **({"codex_image_context": codex_image_context}
                    if codex_image_context is not None else {}),
                 **({"jalapeno_video_endpoint": jalapeno_video_endpoint}
@@ -2033,7 +2012,7 @@ if __name__ == "__main__":
     task_id = "task_id"
     params = VideoParams(
         video_subject="金钱的作用",
-        voice_name="zh-CN-XiaoyiNeural-Female",
+        voice_name="voicestudio:default",
         voice_rate=1.0,
     )
     start(task_id, params, stop_at="video")

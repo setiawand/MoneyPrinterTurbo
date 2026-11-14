@@ -266,10 +266,7 @@ def test_whisper_subtitles_give_a_title_and_its_name_one_subtitle(tmp_path):
         )
     )
     subtitle_file = tmp_path / "subtitle.srt"
-    with (
-        patch.object(subtitle, "model", fake_model),
-        patch.object(subtitle, "WhisperModel", object()),
-    ):
+    with patch.object(subtitle, "model", fake_model):
         subtitle.create("audio.mp3", str(subtitle_file))
     assert [item[2] for item in subtitle.file_to_subtitles(str(subtitle_file))] == [
         "According to Dr",

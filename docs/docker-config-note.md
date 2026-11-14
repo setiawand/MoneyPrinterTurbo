@@ -1,14 +1,14 @@
-# Docker Config Note
+# Catatan Konfigurasi Docker
 
-Before starting the supplied Docker Compose services for the first time, copy `config.example.toml` to `config.toml` in the repository root:
+Sebelum menjalankan layanan Docker Compose yang disediakan untuk pertama kali, salin `config.example.toml` menjadi `config.toml` di root repositori:
 
 ```bash
 cp config.example.toml config.toml
 docker compose -f docker-compose.release.yml up
 ```
 
-If `config.toml` already exists as a regular file, keep it rather than overwriting your settings. The supplied Compose files bind-mount this host file into the containers. If it is missing, Compose can create a directory at that path, preventing the application from loading or initializing its configuration.
+Jika `config.toml` sudah ada sebagai berkas biasa, pertahankan dan jangan menimpa pengaturan Anda. File Compose yang disediakan me-mount berkas host ini ke dalam container. Jika berkas itu tidak ada, Compose dapat membuat direktori di path tersebut, sehingga aplikasi tidak dapat memuat atau menginisialisasi konfigurasinya.
 
-Create the file before startup even if you plan to enter API keys later in the WebUI. Once the WebUI starts, add cloud LLM, media, or video-service credentials from its basic settings.
+Buat berkas ini sebelum memulai meskipun Anda berencana mengisi kunci API nanti lewat WebUI. Setelah WebUI berjalan, tambahkan kredensial LLM cloud, media, atau layanan video dari pengaturan dasarnya.
 
-Application-level automatic creation from `config.example.toml` is available in deployment modes without a missing-file bind mount obstructing initialization; it does not replace this prerequisite for the supplied Compose deployment.
+Pembuatan otomatis di tingkat aplikasi dari `config.example.toml` tersedia pada mode deployment tanpa bind mount berkas hilang yang menghalangi inisialisasi; ini tidak menggantikan prasyarat tersebut untuk deployment Compose yang disediakan.

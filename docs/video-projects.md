@@ -1,33 +1,33 @@
-# Editable local video projects
+# Proyek video lokal yang dapat disunting
 
-Change one scene without rendering the whole episode again. This opt-in CLI
-snapshots prepared local footage and narration, records immutable revisions, and
-reuses artifacts only when both their dependencies and SHA-256 integrity match.
-It makes no API calls and does not publish videos. Existing generation jobs and
-WebUI behavior are unchanged.
+Ubah satu adegan tanpa merender ulang seluruh episode. CLI opt-in ini
+membuat snapshot footage dan narasi lokal yang sudah disiapkan, mencatat revisi yang tidak dapat diubah, dan
+memakai ulang artefak hanya jika dependensi dan integritas SHA-256-nya sama-sama cocok.
+CLI ini tidak memanggil API dan tidak memublikasikan video. Job pembuatan yang ada dan
+perilaku WebUI tidak berubah.
 
-This is a revision/artifact foundation for the existing scene/director proposals,
-not another director or paid-provider workflow. First generate/download the
-footage and narration using the existing task pipeline or your preferred tools.
-Use their local output paths below. Keep a scene's ID when replacing its media;
-change the order in the manifest to reorder the video.
+Ini adalah fondasi revisi/artefak untuk usulan scene/director yang sudah ada,
+bukan alur director atau penyedia berbayar yang baru. Buat/unduh dulu
+footage dan narasi memakai pipeline tugas yang ada atau alat pilihan Anda.
+Gunakan path keluaran lokalnya di bawah. Pertahankan ID adegan saat mengganti medianya;
+ubah urutan di manifes untuk mengatur ulang urutan video.
 
-## Requirements
+## Persyaratan
 
-Python 3.11 or newer and FFmpeg/FFprobe on PATH, including the `libx264` encoder.
-Prepared inputs must be standalone encoded media: MOV/MP4, Matroska/WebM, AVI,
-MPEG-TS/video, Ogg, FLV, WAV, MP3, FLAC or AAC. HLS/DASH/concat playlists and
-external-reference media are rejected; copying only a playlist would not snapshot
-its referenced segments. Concat is permitted only for internally generated
-assembly lists. Network protocols are disabled for all render inputs.
-There are no new Python dependencies. Projects are local single-host stores;
-network filesystems with unreliable locking are unsupported. Reserve enough disk
-for source snapshots, retained revisions and exports. There is no automatic
-artifact pruning or deletion of older successful exports.
+Python 3.11 atau lebih baru serta FFmpeg/FFprobe di PATH, termasuk encoder `libx264`.
+Masukan yang disiapkan harus berupa media ter-encode mandiri: MOV/MP4, Matroska/WebM, AVI,
+MPEG-TS/video, Ogg, FLV, WAV, MP3, FLAC, atau AAC. Playlist HLS/DASH/concat dan
+media dengan referensi eksternal ditolak; menyalin playlist saja tidak akan membuat snapshot
+segmen yang dirujuknya. Concat hanya diizinkan untuk daftar perakitan yang dibuat secara internal.
+Protokol jaringan dinonaktifkan untuk semua masukan render.
+Tidak ada dependensi Python baru. Proyek adalah penyimpanan lokal satu host;
+filesystem jaringan dengan penguncian yang tidak andal tidak didukung. Sediakan disk yang cukup
+untuk snapshot sumber, revisi yang dipertahankan, dan ekspor. Tidak ada pemangkasan
+artefak otomatis atau penghapusan ekspor sukses yang lebih lama.
 
-## Create, inspect and render
+## Membuat, memeriksa, dan merender
 
-Save `episode.json` beside your prepared assets:
+Simpan `episode.json` di samping aset yang sudah disiapkan:
 
 ```json
 {
@@ -63,30 +63,30 @@ python -m app.services.video_project --project storage/projects/product-episode 
 python -m app.services.video_project --project storage/projects/product-episode status
 ```
 
-Relative asset paths resolve against the manifest's directory. Sources are copied
-into the project; later editing the original file does not silently change a
-revision. The revision ID printed by `revise` identifies an immutable input
-snapshot. `status` reports completed stages, reused artifacts, failures and the
-export path. `project.json` points to the current revision and the last successful
-export, which is preserved until a newer current revision succeeds.
+Path aset relatif di-resolve terhadap direktori manifes. Sumber disalin
+ke dalam proyek; mengedit file asli di kemudian hari tidak diam-diam mengubah
+revisi. ID revisi yang dicetak oleh `revise` mengidentifikasi snapshot masukan yang tidak
+dapat diubah. `status` melaporkan tahap yang selesai, artefak yang dipakai ulang, kegagalan, dan
+path ekspor. `project.json` menunjuk ke revisi saat ini dan ekspor sukses terakhir,
+yang dipertahankan sampai revisi saat ini yang lebih baru berhasil.
 
-Audio determines the duration of narrated scenes. Silent scenes use `duration`
-(default five seconds). Short footage loops; long footage is trimmed. Source
-video audio is intentionally replaced with the prepared narration or silence.
-All scene outputs use the same dimensions, frame rate and stereo 48kHz audio.
-The final BGM mix loops music to the timeline duration and does not normalize
-narration away. Zero BGM volume produces an unmixed export.
+Audio menentukan durasi adegan yang bernarasi. Adegan senyap memakai `duration`
+(default lima detik). Footage pendek diulang; footage panjang dipotong. Audio video
+sumber sengaja diganti dengan narasi yang disiapkan atau keheningan.
+Semua keluaran adegan memakai dimensi, frame rate, dan audio stereo 48kHz yang sama.
+Mix BGM akhir mengulang musik sampai durasi timeline dan tidak menormalisasi
+narasi hingga hilang. Volume BGM nol menghasilkan ekspor tanpa mix.
 
-`narration` is provenance text, not a TTS request. When changing narration, provide
-its newly prepared audio too; the CLI cannot verify that the recording speaks the
-text. Word-aligned subtitles, transitions, overlays and provider generation are
-not implemented by this first local renderer. The timing stage records duration,
-not generated word alignments.
+`narration` adalah teks asal-usul, bukan permintaan TTS. Saat mengubah narasi, sediakan juga
+audio yang baru disiapkan; CLI tidak dapat memverifikasi bahwa rekaman itu mengucapkan
+teksnya. Subtitle yang selaras kata, transisi, overlay, dan pembuatan oleh penyedia
+tidak diimplementasikan oleh renderer lokal pertama ini. Tahap timing mencatat durasi,
+bukan keselarasan kata yang dihasilkan.
 
-## Replace, compare and reuse
+## Mengganti, membandingkan, dan memakai ulang
 
-Edit only the affected scene/BGM fields, then run `revise` again with the same
-`project_id` and stable scene IDs. Use the old and new printed IDs to compare:
+Edit hanya field adegan/BGM yang terdampak, lalu jalankan `revise` lagi dengan
+`project_id` dan ID adegan yang sama. Gunakan ID lama dan baru yang dicetak untuk membandingkan:
 
 ```sh
 python -m app.services.video_project --project storage/projects/product-episode compare OLD_REVISION NEW_REVISION
@@ -94,67 +94,67 @@ python -m app.services.video_project --project storage/projects/product-episode 
 python -m app.services.video_project --project storage/projects/product-episode render
 ```
 
-| Change | Rebuilt stages |
+| Perubahan | Tahap yang dibangun ulang |
 |---|---|
-| One scene's footage | That scene's render, assembly and final export |
-| One scene's narration/audio | That scene's audio normalization, timing and render; assembly and export |
-| BGM file or volume | Final mix/export only |
-| Scene order | Assembly and export only |
-| Dimensions/frame rate | Scene renders, assembly and export |
-| Narration volume | Audio, timing, scenes, assembly and export |
-| FFmpeg tool version/renderer contract | A new revision rebuilds under the changed transformation fingerprint |
+| Footage satu adegan | Render adegan itu, perakitan, dan ekspor akhir |
+| Narasi/audio satu adegan | Normalisasi audio, timing, dan render adegan itu; perakitan dan ekspor |
+| File atau volume BGM | Hanya mix/ekspor akhir |
+| Urutan adegan | Hanya perakitan dan ekspor |
+| Dimensi/frame rate | Render adegan, perakitan, dan ekspor |
+| Volume narasi | Audio, timing, adegan, perakitan, dan ekspor |
+| Versi alat FFmpeg/kontrak renderer | Revisi baru dibangun ulang di bawah sidik jari transformasi yang berubah |
 
-The plan explains changed dependencies, missing completed artifacts and integrity
-failures. Damaged artifacts are rebuilt from verified snapshots. Damaged source
-snapshots fail closed: create a new revision from the original prepared media.
-Caches stay inside one project; another project cannot implicitly reuse them.
-There are no savings percentages or paid-generation idempotency guarantees.
+Rencana menjelaskan dependensi yang berubah, artefak selesai yang hilang, dan kegagalan
+integritas. Artefak yang rusak dibangun ulang dari snapshot yang terverifikasi. Snapshot
+sumber yang rusak gagal secara tertutup: buat revisi baru dari media asli yang sudah disiapkan.
+Cache tetap berada di dalam satu proyek; proyek lain tidak dapat memakainya secara implisit.
+Tidak ada persentase penghematan atau jaminan idempotensi pembuatan berbayar.
 
-## Cancellation, failures and concurrent revisions
+## Pembatalan, kegagalan, dan revisi bersamaan
 
 ```sh
 python -m app.services.video_project --project storage/projects/product-episode cancel
 python -m app.services.video_project --project storage/projects/product-episode render --retry
 ```
 
-A cancellation request stops the active media subprocess and prevents promotion.
-An explicit `--retry` is required after a failed, cancelled or interrupted render.
-Completed verified stages remain reusable. A process crash may leave status
-`running`; retry rechecks artifacts instead of assuming it completed. Temporary
-uncommitted `.work` directories from an abrupt process death may be deleted when
-no render is active. They are never a source of trusted reusable artifacts.
+Permintaan pembatalan menghentikan subproses media yang aktif dan mencegah promosi.
+`--retry` yang eksplisit diperlukan setelah render yang gagal, dibatalkan, atau terputus.
+Tahap terverifikasi yang sudah selesai tetap dapat dipakai ulang. Crash proses dapat meninggalkan status
+`running`; retry memeriksa ulang artefak alih-alih menganggapnya selesai. Direktori `.work`
+sementara yang belum di-commit akibat proses mati mendadak boleh dihapus saat
+tidak ada render yang aktif. Direktori itu tidak pernah menjadi sumber artefak yang dapat dipercaya untuk dipakai ulang.
 
-Only one renderer writes a revision at a time. Different revisions may render
-concurrently and share immutable completed artifacts. If a newer revision is
-created while an older one renders, the old revision may finish for comparison,
-but cannot replace the current project's last successful export. OS locks release
-after process death. Each external media command has a bounded deadline (600
-seconds by default, adjustable with `render --stage-timeout`).
+Hanya satu renderer yang menulis sebuah revisi pada satu waktu. Revisi yang berbeda dapat dirender
+bersamaan dan berbagi artefak selesai yang tidak dapat diubah. Jika revisi yang lebih baru
+dibuat saat yang lebih lama dirender, revisi lama boleh selesai untuk perbandingan,
+tetapi tidak dapat menggantikan ekspor sukses terakhir proyek saat ini. Kunci OS dilepas
+setelah proses mati. Setiap perintah media eksternal memiliki tenggat terbatas (600
+detik secara default, dapat diatur dengan `render --stage-timeout`).
 
-Manifests and artifact records use atomic file replacement. Artifact bytes are
-published before the commit record; incomplete writes are never trusted. A
-fingerprint includes the renderer contract, FFmpeg/FFprobe versions, relevant
-settings and content hashes. Unknown manifest/settings fields are rejected,
-including provider credentials. Store only public narration content here; no
-software can infer whether arbitrary user-written text contains a secret.
+Manifes dan catatan artefak memakai penggantian berkas atomik. Byte artefak
+dipublikasikan sebelum catatan commit; penulisan yang tidak lengkap tidak pernah dipercaya. Sidik
+jari mencakup kontrak renderer, versi FFmpeg/FFprobe, pengaturan terkait, dan hash
+konten. Field manifes/pengaturan yang tidak dikenal ditolak, termasuk
+kredensial penyedia. Simpan hanya konten narasi publik di sini; tidak ada
+perangkat lunak yang dapat menyimpulkan apakah teks tulisan pengguna berisi rahasia.
 
-## Reusable episode/brand render settings
+## Pengaturan render episode/merek yang dapat dipakai ulang
 
 ```sh
 python -m app.services.video_project --project storage/projects/product-episode save-preset brand-render.json
 python -m app.services.video_project --project storage/projects/next-episode revise next-episode.json --preset brand-render.json
 ```
 
-Presets reuse dimensions, frame rate and narration/BGM volume. They contain no
-assets, project IDs, credentials, provider selections or claims of consistent
-AI-generated characters. A supplied preset replaces the manifest's settings.
-Scene assets and narration remain explicit per episode.
+Preset memakai ulang dimensi, frame rate, dan volume narasi/BGM. Preset tidak berisi
+aset, ID proyek, kredensial, pilihan penyedia, atau klaim karakter buatan AI yang konsisten.
+Preset yang diberikan menggantikan pengaturan manifes.
+Aset adegan dan narasi tetap eksplisit untuk setiap episode.
 
-## Integration boundary
+## Batas integrasi
 
-`VideoProject.create_revision`, `plan`, `render`, `status` and `compare` provide the
-same prepared-media contract as the CLI. A future accepted director can pass its
-completed narration/footage paths, retain scene IDs, and consume export/revision
-receipts without changing provider ownership. Existing creative-outcome records
-can reference a completed revision ID without introducing automated publishing
-or treating observational performance as causal evidence.
+`VideoProject.create_revision`, `plan`, `render`, `status`, dan `compare` menyediakan
+kontrak media-yang-disiapkan yang sama dengan CLI. Director yang nanti diterima dapat meneruskan
+path narasi/footage yang sudah selesai, mempertahankan ID adegan, dan memakai
+tanda terima ekspor/revisi tanpa mengubah kepemilikan penyedia. Catatan
+creative-outcome yang ada dapat merujuk ID revisi yang selesai tanpa memperkenalkan publikasi
+otomatis atau memperlakukan performa observasional sebagai bukti kausal.

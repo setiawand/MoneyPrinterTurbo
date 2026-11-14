@@ -457,52 +457,6 @@ class TestWebuiBackgroundMusic(unittest.TestCase):
                 )
                 self.assertEqual([str(item.value) for item in app.exception], [])
 
-    def test_elevenlabs_tts_and_music_share_one_api_key_widget(self):
-        """同时启用配音和配乐时只能存在一个 Key 状态，修改后不能被旧值覆盖。"""
-        test_config = dict(config.elevenlabs, api_key="key-A")
-        test_ui = dict(config.ui, voice_mode="tts")
-        with (
-            patch.object(config, "elevenlabs", test_config),
-            patch.object(config, "ui", test_ui),
-            patch.object(config, "save_config"),
-            patch.object(voice, "get_elevenlabs_voices", return_value=[]),
-        ):
-            app = AppTest.from_file(str(WEBUI_MAIN), default_timeout=30)
-            app.session_state["ui_language"] = "en"
-            app.run()
-            self._widget_by_key(
-                app.selectbox, "tts_server_select"
-            ).set_value("elevenlabs").run()
-            self._widget_by_key(
-                app.selectbox, "bgm_type_select"
-            ).set_value("elevenlabs").run()
-
-            shared_inputs = [
-                item
-                for item in app.text_input
-                if str(getattr(item, "key", "")).startswith(
-                    "elevenlabs_api_key_input"
-                )
-            ]
-            self.assertEqual(len(shared_inputs), 1)
-            self.assertEqual(shared_inputs[0].value, "key-A")
-            self.assertFalse(
-                any(
-                    str(getattr(item, "key", "")).startswith(
-                        "elevenlabs_music_api_key_input"
-                    )
-                    for item in app.text_input
-                )
-            )
-
-            shared_inputs[0].set_value("key-B").run()
-            updated_input = self._widget_by_key(
-                app.text_input, "elevenlabs_api_key_input"
-            )
-            self.assertEqual(updated_input.value, "key-B")
-            self.assertEqual(test_config["api_key"], "key-B")
-
-        self.assertEqual([str(item.value) for item in app.exception], [])
 
     def test_elevenlabs_connection_button_reports_success(self):
         test_config = dict(config.elevenlabs, api_key="saved-test-key")

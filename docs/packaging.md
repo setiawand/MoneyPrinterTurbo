@@ -1,15 +1,15 @@
-# pip 安装包与 PyPI 发布
+# Paket Pemasangan pip dan Rilis PyPI
 
-发行包名采用 `mpt`，项目名称仍为 MoneyPrinterTurbo。当前源码版本为 `1.3.10`，
-已发布到 [PyPI](https://pypi.org/project/mpt/1.3.10/)，同时提供 wheel 和 sdist。
-已发布文件不可覆盖，后续代码变更需要提升版本后重新构建和验证。
+Nama paket rilis adalah `mpt`, sedangkan nama proyek tetap MoneyPrinterTurbo. Versi kode sumber saat ini `1.3.10`,
+sudah dirilis di [PyPI](https://pypi.org/project/mpt/1.3.10/), dengan wheel dan sdist.
+File yang sudah dirilis tidak dapat ditimpa; perubahan kode berikutnya harus menaikkan versi lalu dibangun dan diverifikasi ulang.
 
-## 构建和安装
+## Build dan Pemasangan
 
-需要 Python 3.11 或更新版本。依赖会随 wheel 一起解析安装，FFmpeg 优先使用系统
-版本，也可使用 imageio-ffmpeg 提供的二进制。
+Memerlukan Python 3.11 atau lebih baru. Dependensi di-resolve dan dipasang bersama wheel; FFmpeg memprioritaskan versi
+sistem, atau dapat memakai biner dari imageio-ffmpeg.
 
-用户从 PyPI 安装并启动：
+Pengguna memasang dari PyPI dan menjalankan:
 
 ```sh
 python -m pip install mpt
@@ -17,7 +17,7 @@ mpt webui
 mpt cli --help
 ```
 
-本地构建和验证：
+Build dan verifikasi lokal:
 
 ```sh
 uv build --out-dir storage/package/mpt-dist
@@ -27,10 +27,11 @@ mpt webui
 mpt cli --help
 ```
 
-正式上传前应确认 PyPI 账号、目标版本和发行包哈希，避免使用混有旧包的目录
-进行批量上传。每次发布均需用户明确授权，不随代码提交或推送自动发布。
+Sebelum unggah resmi, pastikan akun PyPI, versi target, dan hash paket rilis, agar tidak memakai direktori
+yang tercampur paket lama untuk unggah massal. Setiap rilis memerlukan otorisasi eksplisit dari pengguna, dan tidak
+dirilis otomatis saat kode di-commit atau di-push.
 
-## 发布前检查
+## Pemeriksaan Sebelum Rilis
 
 ```sh
 uvx twine check --strict \
@@ -38,19 +39,19 @@ uvx twine check --strict \
   storage/package/mpt-dist/mpt-1.3.10.tar.gz
 ```
 
-检查 PyPI 说明页、发行包元数据和依赖可安装性，并在新虚拟环境中完成视频生成。
-只有明确授权上传后才执行正式发布；账号密码、验证码和 API Token 不写入仓库、
-命令示例或日志。各语种 README 提供用户安装入口，PyPI 的说明单独维护在
-`docs/pypi-description.md`；更新仓库文档不会自动修改已经发布的 PyPI 介绍页。
+Periksa halaman deskripsi PyPI, metadata paket rilis, dan keterpasangan dependensi, lalu selesaikan pembuatan video di virtual environment baru.
+Rilis resmi hanya dijalankan setelah unggahan diizinkan secara eksplisit; kata sandi akun, kode verifikasi, dan token API tidak ditulis ke repositori,
+contoh perintah, atau log. README tiap bahasa menyediakan pintu masuk pemasangan bagi pengguna, sedangkan deskripsi PyPI dikelola terpisah di
+`docs/pypi-description.md`; memperbarui dokumen repositori tidak otomatis mengubah halaman pengantar PyPI yang sudah dirilis.
 
-`mpt webui` 默认仅监听 `127.0.0.1`，从 8501 开始选择空闲端口，自动打开浏览器。
-可使用 `--host`、`--port` 指定地址，`--headless` 禁止自动打开浏览器：
+`mpt webui` secara default hanya mendengarkan di `127.0.0.1`, memilih port kosong mulai dari 8501, dan membuka browser otomatis.
+Gunakan `--host` dan `--port` untuk menentukan alamat, dan `--headless` agar browser tidak dibuka otomatis:
 
 ```sh
 mpt webui --port 8503 --headless
 ```
 
-CLI 复用 `python cli.py` 的参数、任务流水线、退出码和 JSON 输出。完整离线示例：
+CLI memakai ulang parameter `python cli.py`, pipeline tugas, kode keluar, dan keluaran JSON. Contoh offline lengkap:
 
 ```sh
 mpt cli --video-script "A short video from local materials." \
@@ -59,34 +60,34 @@ mpt cli --video-script "A short video from local materials." \
   --no-subtitle-enabled --bgm-type none
 ```
 
-在线文案、素材、TTS 等功能仍需相应服务的配置、密钥和网络连接。Whisper 模型按需
-加载，不放入 wheel。CLI 日志写入 stderr，成功时 stdout 输出包含视频路径的 JSON。
+Fitur online seperti naskah, materi, dan TTS tetap memerlukan konfigurasi, kunci, dan koneksi jaringan layanan terkait. Model Whisper
+dimuat sesuai kebutuhan dan tidak dimasukkan ke wheel. Log CLI ditulis ke stderr, dan saat sukses stdout mengeluarkan JSON berisi path video.
 
-## 配置与数据
+## Konfigurasi dan Data
 
-源码运行继续使用项目根目录。安装版不依赖当前工作目录，默认运行目录为：
+Menjalankan dari kode sumber tetap memakai direktori root proyek. Versi terpasang tidak bergantung pada direktori kerja saat ini, dan direktori runtime default-nya:
 
-| 平台 | 运行目录 |
+| Platform | Direktori runtime |
 | --- | --- |
 | macOS | `~/Library/Application Support/MoneyPrinterTurbo` |
 | Windows | `%LOCALAPPDATA%\MoneyPrinterTurbo` |
-| Linux | `$XDG_DATA_HOME/MoneyPrinterTurbo`，默认 `~/.local/share/MoneyPrinterTurbo` |
+| Linux | `$XDG_DATA_HOME/MoneyPrinterTurbo`, default `~/.local/share/MoneyPrinterTurbo` |
 
-可通过 `MPT_HOME` 显式指定运行目录（源码版也支持）。其中：
+Direktori runtime dapat ditentukan secara eksplisit lewat `MPT_HOME` (versi kode sumber juga mendukungnya). Di dalamnya:
 
-- `config.toml`：首次运行从不含密钥的模板初始化，后续启动不会覆盖已有配置。
-- `storage/tasks`：任务和生成的视频；其他缓存和上传文件在 `storage` 下。
-- `resource/fonts`、`resource/songs`：首次使用时复制内置资源，可添加自己的文件。
-- `models`：可放置手工下载的 Whisper 模型。
+- `config.toml`: diinisialisasi pada peluncuran pertama dari templat tanpa kunci, dan peluncuran berikutnya tidak menimpa konfigurasi yang ada.
+- `storage/tasks`: tugas dan video hasil; cache dan file unggahan lain ada di bawah `storage`.
+- `resource/fonts`, `resource/songs`: sumber daya bawaan disalin pada pemakaian pertama, dan Anda dapat menambahkan file sendiri.
+- `models`: tempat meletakkan model Whisper yang diunduh manual.
 
-用户资源只补齐缺失文件，升级不覆盖已有文件。安装包包含两种默认中文字体、
-越南语字体和内置背景音乐；备用的 `STHeitiLight.ttc`、`MicrosoftYaHeiNormal.ttc`
-不进入发行包，以控制文件体积。需要这些字重时可放入运行目录的 `resource/fonts`。
-源码版原有资源和外观不变。
+Sumber daya pengguna hanya melengkapi file yang hilang, dan peningkatan versi tidak menimpa file yang sudah ada. Paket pemasangan menyertakan dua font Mandarin default,
+font Vietnam, dan musik latar bawaan; font cadangan `STHeitiLight.ttc` dan `MicrosoftYaHeiNormal.ttc`
+tidak masuk ke paket rilis untuk menekan ukuran file. Jika memerlukan ketebalan font tersebut, letakkan di `resource/fonts` pada direktori runtime.
+Sumber daya dan tampilan asli versi kode sumber tidak berubah.
 
-## 本地验证要求
+## Persyaratan Verifikasi Lokal
 
-从 sdist 重建 wheel，安装到不继承系统包的新虚拟环境，离开源码目录并清除
-`PYTHONPATH` 后验证 `mpt cli --help`、WebUI 实际页面和视频生成。输出视频应由
-FFmpeg 完整解码，并确认配置与产物没有写入 site-packages。发行包不得包含
-本机 `config.toml`、密钥、缓存、任务产物或本地协作指令。
+Bangun ulang wheel dari sdist, pasang ke virtual environment baru yang tidak mewarisi paket sistem, keluar dari direktori kode sumber, dan hapus
+`PYTHONPATH`, lalu verifikasi `mpt cli --help`, halaman WebUI yang sebenarnya, dan pembuatan video. Video keluaran harus dapat didekode penuh oleh
+FFmpeg, dan pastikan konfigurasi serta hasil tidak ditulis ke site-packages. Paket rilis tidak boleh memuat
+`config.toml` lokal, kunci, cache, hasil tugas, atau instruksi kolaborasi lokal.

@@ -402,7 +402,8 @@ class TestWebuiI18n(unittest.TestCase):
     def test_secondary_locales_do_not_duplicate_provider_tips(self):
         # Provider 配置长说明只维护中英文，其它语言运行时回退英文。
         # 禁止复制这些 key，避免出现不会持续维护的半翻译内容。
-        for locale in SECONDARY_LOCALES:
+        # Bahasa Indonesia sengaja menerjemahkan seluruh teks, jadi dikecualikan.
+        for locale in (l for l in SECONDARY_LOCALES if l != "id"):
             with self.subTest(locale=locale):
                 locale_keys = set(_load_translation(locale))
                 duplicated_keys = sorted(
@@ -411,7 +412,8 @@ class TestWebuiI18n(unittest.TestCase):
                 self.assertEqual(duplicated_keys, [])
 
     def test_secondary_locales_do_not_duplicate_english_fallback_keys(self):
-        for locale in SECONDARY_LOCALES:
+        # Bahasa Indonesia sengaja menerjemahkan seluruh teks, jadi dikecualikan.
+        for locale in (l for l in SECONDARY_LOCALES if l != "id"):
             with self.subTest(locale=locale):
                 locale_keys = set(_load_translation(locale))
                 self.assertEqual(sorted(ENGLISH_FALLBACK_KEYS & locale_keys), [])
@@ -460,21 +462,6 @@ class TestWebuiI18n(unittest.TestCase):
         self.assertIn("ru-RU", support_locales)
         self.assertIn("ca-ES", support_locales)
 
-    def test_script_language_options_include_indonesian_with_builtin_voices(self):
-        """印尼语必须可选且内置音色覆盖 id-ID，避免界面已翻译却无法生成印尼语视频。"""
-        support_locales = _support_locales()
-        self.assertIsNotNone(support_locales)
-        self.assertIn("id-ID", support_locales)
-
-        voices = json.loads(
-            (ROOT_DIR / "app" / "services" / "data" / "azure_voices.json").read_text(
-                encoding="utf-8"
-            )
-        )
-        indonesian_voices = {
-            item["name"] for item in voices if item["name"].startswith("id-ID-")
-        }
-        self.assertGreaterEqual(len(indonesian_voices), 2)
 
     def test_locale_files_do_not_redefine_a_translation_key(self):
         """

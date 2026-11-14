@@ -13,7 +13,7 @@ from app.config import config
 from app.services import voice
 
 
-@pytest.mark.parametrize("provider", ["siliconflow", "minimax", "elevenlabs", "openai", "fish"])
+@pytest.mark.parametrize("provider", ["openai"])
 @pytest.mark.parametrize("corrupt", [True, False])
 def test_accepted_audio_requires_full_decode_and_preserves_previous_export(tmp_path, provider, corrupt):
     if not shutil.which("ffmpeg"):
@@ -54,13 +54,9 @@ def test_accepted_audio_requires_full_decode_and_preserves_previous_export(tmp_p
     output = tmp_path / "narration.mp3"
     output.write_bytes(complete)
     try:
-        with patch.dict(config.siliconflow, {"api_key": "fixture"}), patch.dict(config.minimax_tts, {"api_key": "fixture"}), patch.dict(config.elevenlabs, {"api_key": "fixture"}), patch.object(voice, "get_fish_audio_api_key", return_value="fixture"), patch.object(voice.requests, "post", side_effect=post_to_fixture):
+        with patch.object(voice.requests, "post", side_effect=post_to_fixture):
             calls = {
-                "siliconflow": lambda: voice.siliconflow_tts("hello", "model", "voice", 1.0, str(output)),
-                "minimax": lambda: voice.minimax_tts("hello", "voice", 1.0, str(output)),
-                "elevenlabs": lambda: voice.elevenlabs_tts("hello", "voice", str(output)),
                 "openai": lambda: voice._openai_compatible_tts("fixture", "https://fixture.invalid/v1", "fixture", "model", "voice", "hello", 1.0, str(output)),
-                "fish": lambda: voice.fish_audio_tts("hello", str(output)),
             }
             result = calls[provider]()
         assert len(seen) == 1, "accepted audio must not trigger another speech POST"

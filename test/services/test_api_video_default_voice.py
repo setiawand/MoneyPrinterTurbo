@@ -11,7 +11,7 @@ from app.controllers.v1 import video as video_controller
 from app.models.schema import TaskVideoRequest
 from app.services import voice
 
-DEFAULT_VOICE_NAME = "zh-CN-XiaoxiaoNeural-Female"
+DEFAULT_VOICE_NAME = "voicestudio:default"
 
 
 @pytest.fixture
@@ -55,9 +55,3 @@ def test_api_docs_show_the_default_voice_for_video_requests(client):
     )
 
 
-def test_default_video_voice_is_an_edge_voice():
-    # Edge TTS rejects an empty voice with "Invalid voice ''." before it connects.
-    voice_name = voice.parse_voice_name(
-        TaskVideoRequest(video_subject="Coffee").voice_name
-    )
-    assert voice.create_edge_tts_communicate("Coffee", voice_name, "+0%")

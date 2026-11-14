@@ -58,7 +58,6 @@ def test_failed_caption_write_preserves_complete_existing_srt(tmp_path, monkeypa
         segment = SimpleNamespace(words=[word], text='Changed', start=0.0, end=1.0)
         info = SimpleNamespace(language='en', language_probability=1.0)
         model = SimpleNamespace(transcribe=lambda *args, **kwargs: (iter([segment]), info))
-        monkeypatch.setattr(subtitle, 'WhisperModel', object())
         monkeypatch.setattr(subtitle, 'model', model)
         with pytest.raises(OSError):
             subtitle.create('local-audio.mp3', str(destination))

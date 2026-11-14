@@ -130,7 +130,7 @@ def _sample_config_sections():
             "volcengine_seedance_api_key": "ark-seedance-key",
             "ofox_api_key": "ofox-backup-key",
         },
-        "azure": {"speech_key": "azure-key", "speech_region": "westeurope"},
+        "azure": {"speech_key": "azure-key"},
         "elevenlabs": {"api_key": "eleven-key", "model_id": "eleven_v3"},
         "ui": {"language": "en", "font_size": 60},
     }
@@ -285,10 +285,10 @@ def test_key_backup_collects_credentials_and_their_companion_settings():
             "volcengine_seedance_api_key": "ark-seedance-key",
             "ofox_api_key": "ofox-backup-key",
         },
-        "azure": {"speech_key": "azure-key", "speech_region": "westeurope"},
+        "azure": {"speech_key": "azure-key"},
         "elevenlabs": {"api_key": "eleven-key"},
     }
-    assert count_backup_keys(backup) == 12
+    assert count_backup_keys(backup) == 11
 
 
 def test_key_backup_carries_llm_provider_extra_fields_with_the_key():
@@ -440,16 +440,15 @@ def test_apply_key_backup_writes_config_and_clears_every_widget_alias():
                 "gemini_api_key": "new-gemini",
                 "loomloom_api_token": "new-loomloom",
             },
-            "azure": {"speech_key": "new-azure", "speech_region": "westeurope"},
+            "azure": {"speech_key": "new-azure"},
         }
     )
 
-    assert restored_count == 4
+    assert restored_count == 3
     assert sorted(RUNTIME_CONFIG_UPDATES) == [
         ("app", "gemini_api_key", "new-gemini"),
         ("app", "loomloom_api_token", "new-loomloom"),
         ("azure", "speech_key", "new-azure"),
-        ("azure", "speech_region", "westeurope"),
     ]
     # 每一个别名控件状态都必须消失，否则旧密钥会在下一次 rerun 写回配置。
     assert FAKE_STREAMLIT.session_state == {"video_subject": "untouched"}

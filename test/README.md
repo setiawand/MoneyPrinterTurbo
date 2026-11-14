@@ -1,55 +1,55 @@
-# MoneyPrinterTurbo Test Directory
+# Direktori Test MoneyPrinterTurbo
 
-This directory contains unit tests for the **MoneyPrinterTurbo** project.
+Direktori ini berisi unit test untuk proyek **MoneyPrinterTurbo**.
 
-## Directory Structure
+## Struktur Direktori
 
-- `services/`: Domain-focused unit and controller tests
-  - `test_task.py`: Task pipeline tests
-  - `test_task_manager.py`: In-memory and Redis queue tests
-  - `test_controller_*.py`: API controller tests split by controller domain
-  - `test_video.py`, `test_voice.py`: Media service tests
-- `test_main.py`: Application entry-point test
+- `services/`: Unit test dan test controller berfokus domain
+  - `test_task.py`: Test pipeline tugas
+  - `test_task_manager.py`: Test antrean in-memory dan Redis
+  - `test_controller_*.py`: Test controller API yang dipisah per domain controller
+  - `test_video.py`, `test_voice.py`: Test layanan media
+- `test_main.py`: Test entry point aplikasi
 
-## Running Tests
+## Menjalankan Test
 
-The CI suite uses pytest, which also runs the existing `unittest.TestCase`
-tests:
+Suite CI memakai pytest, yang juga menjalankan test `unittest.TestCase`
+yang sudah ada:
 
 ```bash
-# Run all tests
+# Jalankan semua test
 uv run python -X utf8 -m pytest -q test
 
-# Run a specific test file
+# Jalankan satu berkas test tertentu
 uv run python -X utf8 -m pytest -q test/services/test_video.py
 
-# Run a specific test class
+# Jalankan satu kelas test tertentu
 uv run python -X utf8 -m pytest -q test/services/test_video.py::TestVideoService
 
-# Run a specific test method
+# Jalankan satu metode test tertentu
 uv run python -X utf8 -m pytest -q test/services/test_video.py::TestVideoService::test_preprocess_video
 ```
 
-To run the same branch coverage check used by CI:
+Untuk menjalankan pemeriksaan branch coverage yang sama dengan CI:
 
 ```bash
 uv run python -X utf8 -m coverage run -m pytest -q test
 uv run python -m coverage report
 ```
 
-Live provider tests are skipped by default. To run tests that may call external
-TTS or LLM services, set `MPT_RUN_INTEGRATION_TESTS=1` and provide the required
-provider credentials.
+Test penyedia langsung dilewati secara default. Untuk menjalankan test yang dapat memanggil layanan
+TTS atau LLM eksternal, atur `MPT_RUN_INTEGRATION_TESTS=1` dan berikan kredensial
+penyedia yang diperlukan.
 
-## Adding New Tests
+## Menambah Test Baru
 
-To add tests for other components, follow these guidelines:
+Untuk menambah test bagi komponen lain, ikuti panduan berikut:
 
-1. Name files `test_<domain>.py` and keep each file focused on one domain.
-2. Split broad controller suites into files such as `test_controller_video.py`.
-3. Use either pytest functions or `unittest.TestCase`; pytest collects both.
-4. Name test functions and methods with the `test_` prefix.
+1. Beri nama berkas `test_<domain>.py` dan jaga setiap berkas tetap fokus pada satu domain.
+2. Pecah suite controller yang luas menjadi berkas seperti `test_controller_video.py`.
+3. Gunakan fungsi pytest atau `unittest.TestCase`; pytest mengumpulkan keduanya.
+4. Beri nama fungsi dan metode test dengan awalan `test_`.
 
-## Test Resources
+## Sumber Daya Test
 
-Place any resource files required for testing in the `test/resources` directory.
+Letakkan berkas sumber daya yang diperlukan untuk pengujian di direktori `test/resources`.

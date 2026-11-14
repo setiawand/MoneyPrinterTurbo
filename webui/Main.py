@@ -57,7 +57,6 @@ from app.services import (
     infistar_video,
     jalapeno_video,
     ofox,
-    subtitle,
     video,
     volcengine_seedance,
     voice,
@@ -106,23 +105,8 @@ config_file = os.path.join(root_dir, "webui", ".streamlit", "webui.toml")
 # 语言列表必须在会话状态初始化前可用，首次访问时才能把浏览器 locale 映射到
 # 项目真正支持的语言；自动识别结果只进入当前会话，不修改全局配置。
 locales = utils.load_locales(i18n_dir)
-DEFAULT_CHATTERBOX_BASE_URL = "http://127.0.0.1:4123/v1"
-DEFAULT_CHATTERBOX_MODEL = "chatterbox"
-DEFAULT_CHATTERBOX_VOICES = ["default-Female"]
-DEFAULT_KOKORO_BASE_URL = "http://127.0.0.1:8880/v1"
-DEFAULT_KOKORO_MODEL = "kokoro"
 # empty = ask the server for its voice list (GET {base_url}/audio/voices)
 DEFAULT_KOKORO_VOICES: list[str] = []
-DEFAULT_VOXCPM_BASE_URL = voice.VOXCPM_DEFAULT_BASE_URL
-DEFAULT_VOXCPM_VOICE = voice.VOXCPM_DEFAULT_VOICE
-VOXCPM_REFERENCE_AUDIO_SESSION_KEY = "voxcpm_reference_audio"
-VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY = "voxcpm_reference_audio_error"
-VOXCPM_PROMPT_AUDIO_SESSION_KEY = "voxcpm_prompt_audio"
-VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY = "voxcpm_prompt_audio_error"
-VOXCPM_PROMPT_TEXT_SESSION_KEY = "voxcpm_prompt_text_input"
-VOXCPM_HIGH_FIDELITY_SESSION_KEY = "voxcpm_high_fidelity_enabled"
-VOXCPM_SEPARATE_PROMPT_AUDIO_SESSION_KEY = "voxcpm_separate_prompt_audio_enabled"
-VOXCPM_PROMPT_EXAMPLE_MODE_SESSION_KEY = "voxcpm_prompt_example_mode"
 ONBOARDING_TOUR_KEY = "mpt-onboarding-v1"
 CUSTOM_LLM_ENDPOINT_ID = "custom"
 VOICE_MODE_TTS = "tts"
@@ -251,14 +235,8 @@ _WINDOWS_RESERVED_FILENAMES = frozenset(
 )
 _RUNTIME_CONFIG_SECTIONS = {
     "app": config.app,
-    "azure": config.azure,
-    "chatterbox": config.chatterbox,
-    "kokoro": config.kokoro,
+    "voicestudio": config.voicestudio,
     "elevenlabs": config.elevenlabs,
-    "minimax_tts": config.minimax_tts,
-    "siliconflow": config.siliconflow,
-    "fish_audio": config.fish_audio,
-    "voxcpm": config.voxcpm,
     "ui": config.ui,
 }
 # 设置预设与密钥备份使用各自的文件标识。导入时先校验 schema 和版本，
@@ -293,8 +271,6 @@ CREDENTIAL_KEY_SUFFIXES = (
 )
 # 只恢复密钥而不恢复配套配置项时，凭据仍然不可用。这些配套项与密钥一起备份。
 CREDENTIAL_COMPANION_KEYS = {
-    # Azure 语音必须同时知道区域。
-    "azure": ("speech_region",),
     # Provider 的额外字段由 Registry 声明，例如 Cloudflare AI Gateway 的
     # Account ID 和 Gateway ID。只恢复 API Key 而丢掉这些字段时，换到另一台
     # 机器后该 Provider 仍然无法调用。从 Registry 读取可以让以后新增的
@@ -454,141 +430,18 @@ def _run_llm_read_operation(operation_name, operation):
     return operation(app_config_snapshot)
 
 
-def _parse_chatterbox_voices(voices):
-    # Chatterbox 是自托管服务，音色列表由用户在 WebUI 中手动输入。
-    # 这里统一兼容 TOML 数组和输入框里的逗号分隔字符串，避免下拉框、
-    # 试听按钮和后续生成流程使用不同格式导致状态不一致。
-    if isinstance(voices, str):
-        return [v.strip() for v in voices.split(",") if v.strip()]
-    return [str(v).strip() for v in voices or [] if str(v).strip()]
 
 
-def _sync_chatterbox_config_from_session_state():
-    # Streamlit 的按钮会触发整页 rerun，而 Chatterbox 配置输入框位于
-    # “试听语音合成”按钮之后。如果试听时只读取 config.chatterbox，可能拿不到
-    # 用户刚在输入框里填入的 base_url/model/voices。先从 session_state 同步一次，
-    # 可以保证按钮逻辑和输入框显示逻辑使用同一份最新配置。
-    _set_runtime_config(
-        "chatterbox",
-        "base_url",
-        (
-            st.session_state.get(
-                "chatterbox_base_url_input",
-                config.chatterbox.get("base_url") or DEFAULT_CHATTERBOX_BASE_URL,
-            )
-            or ""
-        ).strip(),
-    )
-    _set_runtime_config(
-        "chatterbox",
-        "api_key",
-        st.session_state.get(
-            "chatterbox_api_key_input", config.chatterbox.get("api_key", "")
-        ),
-    )
-    _set_runtime_config(
-        "chatterbox",
-        "model_id",
-        (
-            st.session_state.get(
-                "chatterbox_model_input",
-                config.chatterbox.get("model_id") or DEFAULT_CHATTERBOX_MODEL,
-            )
-            or DEFAULT_CHATTERBOX_MODEL
-        ).strip(),
-    )
-    _set_runtime_config(
-        "chatterbox",
-        "voices",
-        _parse_chatterbox_voices(
-            st.session_state.get(
-                "chatterbox_voices_input",
-                config.chatterbox.get("voices") or DEFAULT_CHATTERBOX_VOICES,
-            )
-        ),
-    )
 
 
-def _sync_kokoro_config_from_session_state():
-    # 音色目录先于设置输入框渲染，先同步浏览器状态，确保本次 rerun 就使用
-    # 新端点和手工音色配置，不必再操作一次控件。
-    _set_runtime_config(
-        "kokoro",
-        "base_url",
-        (
-            st.session_state.get(
-                "kokoro_base_url_input",
-                config.kokoro.get("base_url") or DEFAULT_KOKORO_BASE_URL,
-            )
-            or ""
-        ).strip(),
-    )
-    _set_runtime_config(
-        "kokoro",
-        "api_key",
-        st.session_state.get(
-            "kokoro_api_key_input", config.kokoro.get("api_key", "")
-        ),
-    )
-    _set_runtime_config(
-        "kokoro",
-        "model_id",
-        (
-            st.session_state.get(
-                "kokoro_model_input",
-                config.kokoro.get("model_id") or DEFAULT_KOKORO_MODEL,
-            )
-            or DEFAULT_KOKORO_MODEL
-        ).strip(),
-    )
-    _set_runtime_config(
-        "kokoro",
-        "voices",
-        _parse_chatterbox_voices(
-            st.session_state.get(
-                "kokoro_voices_input",
-                config.kokoro.get("voices") or DEFAULT_KOKORO_VOICES,
-            )
-        ),
-    )
 
 
-def _get_kokoro_voice_options(saved_voice_name: str) -> list[str]:
-    """会话内短缓存远端目录，断线时保留上次选择，不把故障当成用户改音色。"""
-    if config.kokoro.get("voices"):
-        return voice.get_kokoro_voices()
-
-    # 仅保留当前服务的一条缓存。更换端点/凭据立即重查，缓存不保存明文 Key；
-    # 30 秒内的其他 UI 操作不重复阻塞 5 秒等待一个已知离线的服务。
-    signature = (
-        (config.kokoro.get("base_url") or "").strip().rstrip("/"),
-        _credential_signature(config.kokoro.get("api_key", "")),
-    )
-    catalog = st.session_state.get("kokoro_voice_catalog", {})
-    if catalog.get("signature") != signature:
-        catalog = {"signature": signature, "voices": [], "checked_at": None}
-    now = time.monotonic()
-    if catalog["checked_at"] is None or now - catalog["checked_at"] >= 30:
-        fetched = voice.get_kokoro_voices(fallback=False)
-        catalog.update(checked_at=now, available=bool(fetched))
-        if fetched:
-            catalog["voices"] = fetched
-        st.session_state["kokoro_voice_catalog"] = catalog
-
-    options = list(catalog["voices"])
-    if not catalog["available"]:
-        st.warning(tr("Kokoro Voices Unavailable"))
-        # 首次打开时可能没有缓存，仍保留配置文件中的真实选择；恢复连接后
-        # 只有成功返回的新目录才能判定某个旧音色确实已被服务器删除。
-        if voice.is_kokoro_voice(saved_voice_name) and saved_voice_name not in options:
-            options.insert(0, saved_voice_name)
-    return options or [f"kokoro:{voice.KOKORO_DEFAULT_VOICE}"]
 
 
 def _detect_audio_mime(audio_file: str, audio_bytes: bytes) -> str:
-    # 有些 OpenAI-compatible TTS 服务，例如 travisvn/chatterbox-tts-api，
-    # 即使请求 response_format=mp3，也会返回 WAV 内容。WebUI 试听如果固定
-    # 使用 audio/mp3，浏览器可能无法播放，因此这里按文件头识别真实格式。
+    # Sebagian layanan TTS kompatibel OpenAI tetap mengembalikan WAV meski diminta
+    # response_format=mp3. Bila pratinjau WebUI selalu memakai audio/mp3, browser
+    # mungkin tidak dapat memutarnya, jadi format asli dikenali dari header berkas.
     header = audio_bytes[:12]
     if header.startswith(b"RIFF") and header[8:12] == b"WAVE":
         return "audio/wav"
@@ -1504,27 +1357,7 @@ def _load_task_restore_payload(task_id):
 def _infer_tts_server_from_voice(voice_name):
     if voice.is_no_voice(voice_name):
         return voice.NO_VOICE_NAME
-    if voice.is_siliconflow_voice(voice_name):
-        return "siliconflow"
-    if voice.is_gemini_voice(voice_name):
-        return "gemini-tts"
-    if voice.is_mimo_voice(voice_name):
-        return "mimo-tts"
-    if voice.is_minimax_voice(voice_name):
-        return "minimax-tts"
-    if voice.is_elevenlabs_voice(voice_name):
-        return "elevenlabs"
-    if voice.is_chatterbox_voice(voice_name):
-        return "chatterbox"
-    if voice.is_kokoro_voice(voice_name):
-        return "kokoro"
-    if voice.is_fish_audio_voice(voice_name):
-        return "fish_audio"
-    if voice.is_voxcpm_voice(voice_name):
-        return "voxcpm"
-    if voice.is_azure_v2_voice(voice_name):
-        return "azure-tts-v2"
-    return "azure-tts-v1"
+    return "voicestudio"
 
 
 def _set_stable_widget_value(key, value):
@@ -1674,16 +1507,6 @@ def _apply_restored_params(params):
     # 同时清空当前页面已缓存的上传素材，避免恢复后误用另一个任务的文件。
     st.session_state["local_video_materials"] = []
     st.session_state.pop("custom_audio_file_uploader", None)
-    st.session_state.pop("voxcpm_reference_audio_uploader", None)
-    st.session_state.pop(VOXCPM_REFERENCE_AUDIO_SESSION_KEY, None)
-    st.session_state.pop(VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY, None)
-    st.session_state.pop("voxcpm_prompt_audio_uploader", None)
-    st.session_state.pop(VOXCPM_PROMPT_AUDIO_SESSION_KEY, None)
-    st.session_state.pop(VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY, None)
-    st.session_state.pop(VOXCPM_PROMPT_TEXT_SESSION_KEY, None)
-    st.session_state.pop(VOXCPM_HIGH_FIDELITY_SESSION_KEY, None)
-    st.session_state.pop(VOXCPM_SEPARATE_PROMPT_AUDIO_SESSION_KEY, None)
-    st.session_state.pop(VOXCPM_PROMPT_EXAMPLE_MODE_SESSION_KEY, None)
     st.session_state.pop("custom_bgm_uploader", None)
     st.session_state.pop("custom_bgm_validation", None)
     st.session_state["task_restore_upload_requirements"] = (
@@ -5112,7 +4935,7 @@ def _matching_full_voice_preview_duration(script, voice_rate):
 
     current_tts_server = st.session_state.get(
         localized_widget_key("tts_server_select"),
-        config.ui.get("tts_server", "azure-tts-v1"),
+        config.ui.get("tts_server", "voicestudio"),
     )
     current_voice_name = st.session_state.get(
         localized_widget_key(f"speech_synthesis_select_{current_tts_server}"),
@@ -6743,26 +6566,7 @@ def _estimate_voiceover_duration_range(
 
 
 def _get_voice_preview_sample(voice_name: str) -> str:
-    """返回适合当前音色的短试听文案，不使用用户的完整视频文案。"""
-    # ElevenLabs 音色缺少明确语言字段时，根据展示名称中的越南语字符选择
-    # 试听文案，避免用明显不匹配的语言判断音色效果。
-    if voice.is_elevenlabs_voice(voice_name):
-        parts = voice_name.split(":", 2)
-        display = parts[2] if len(parts) >= 3 else ""
-        vietnamese_chars = set("àáâãèéêìíòóôõùúýăđơưÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚÝĂĐƠƯ")
-        if any(char in vietnamese_chars for char in display):
-            return "Xin chào, đây là đoạn âm thanh thử nghiệm giọng nói."
-    # Edge and Azure voice names start with their locale, as in
-    # en-US-JennyNeural-Female, and the voice reads the language of that
-    # locale. Edge returns no audio for text a voice cannot read: an en-US
-    # voice gets none for the Chinese sample. Use the sample in the voice's
-    # language, or the English one when no WebUI language has a sample.
-    if voice.is_azure_v1_voice(voice_name) or voice.is_azure_v2_voice(voice_name):
-        language = voice_name.split("-", 1)[0].lower()
-        for code in (language, "en"):
-            sample = locales.get(code, {}).get("Translation", {}).get("Voice Example")
-            if sample:
-                return sample
+    """Kembalikan teks contoh pendek untuk pratinjau suara, bukan seluruh naskah pengguna."""
     return tr("Voice Example")
 
 
@@ -6803,225 +6607,34 @@ def _credential_signature(value: str) -> str:
     return hashlib.sha256(normalized_value.encode("utf-8")).hexdigest()
 
 
-def _get_voxcpm_reference_audio() -> bytes | None:
-    """Return the current session's normalized reference audio, if any."""
-    payload = st.session_state.get(VOXCPM_REFERENCE_AUDIO_SESSION_KEY)
-    if not isinstance(payload, dict):
-        return None
-    audio_bytes = payload.get("audio_bytes")
-    return bytes(audio_bytes) if isinstance(audio_bytes, bytes) else None
 
 
-def _get_voxcpm_reference_audio_digest() -> str:
-    payload = st.session_state.get(VOXCPM_REFERENCE_AUDIO_SESSION_KEY)
-    if not isinstance(payload, dict):
-        return ""
-    digest = payload.get("audio_digest")
-    return str(digest) if isinstance(digest, str) else ""
 
 
-def _get_voxcpm_prompt_audio() -> bytes | None:
-    payload = st.session_state.get(VOXCPM_PROMPT_AUDIO_SESSION_KEY)
-    if not isinstance(payload, dict):
-        return None
-    audio_bytes = payload.get("audio_bytes")
-    return bytes(audio_bytes) if isinstance(audio_bytes, bytes) else None
 
 
-def _get_voxcpm_prompt_audio_digest() -> str:
-    payload = st.session_state.get(VOXCPM_PROMPT_AUDIO_SESSION_KEY)
-    if not isinstance(payload, dict):
-        return ""
-    digest = payload.get("audio_digest")
-    return str(digest) if isinstance(digest, str) else ""
 
 
-def _get_voxcpm_prompt_text() -> str:
-    return str(st.session_state.get(VOXCPM_PROMPT_TEXT_SESSION_KEY, "") or "").strip()
 
 
-def _clear_voxcpm_separate_prompt_audio() -> None:
-    st.session_state.pop("voxcpm_prompt_audio_uploader", None)
-    st.session_state.pop(VOXCPM_PROMPT_AUDIO_SESSION_KEY, None)
-    st.session_state.pop(VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY, None)
 
 
-def _clear_voxcpm_prompt_state() -> None:
-    _clear_voxcpm_separate_prompt_audio()
-    _clear_voxcpm_prompt_transcript()
-    st.session_state.pop(VOXCPM_SEPARATE_PROMPT_AUDIO_SESSION_KEY, None)
-    st.session_state.pop(VOXCPM_PROMPT_EXAMPLE_MODE_SESSION_KEY, None)
 
 
-def _clear_voxcpm_prompt_transcript() -> None:
-    st.session_state.pop(VOXCPM_PROMPT_TEXT_SESSION_KEY, None)
 
 
-def _sync_voxcpm_prompt_example_mode(use_separate_prompt_audio: bool) -> None:
-    """Invalidate the transcript whenever its effective example changes mode."""
-    previous_mode = st.session_state.get(VOXCPM_PROMPT_EXAMPLE_MODE_SESSION_KEY)
-    current_mode = bool(use_separate_prompt_audio)
-    if previous_mode is not None and bool(previous_mode) != current_mode:
-        _clear_voxcpm_prompt_transcript()
-    st.session_state[VOXCPM_PROMPT_EXAMPLE_MODE_SESSION_KEY] = current_mode
 
 
-def _get_voxcpm_effective_prompt_audio() -> bytes | None:
-    if not st.session_state.get(VOXCPM_HIGH_FIDELITY_SESSION_KEY, False):
-        return None
-    if st.session_state.get(VOXCPM_SEPARATE_PROMPT_AUDIO_SESSION_KEY, False):
-        return _get_voxcpm_prompt_audio()
-    return _get_voxcpm_reference_audio()
 
 
-def _get_voxcpm_effective_prompt_audio_digest() -> str:
-    if not st.session_state.get(VOXCPM_HIGH_FIDELITY_SESSION_KEY, False):
-        return ""
-    if st.session_state.get(VOXCPM_SEPARATE_PROMPT_AUDIO_SESSION_KEY, False):
-        return _get_voxcpm_prompt_audio_digest()
-    return _get_voxcpm_reference_audio_digest()
 
 
-def _get_voxcpm_prompt_validation_error() -> str:
-    if not st.session_state.get(VOXCPM_HIGH_FIDELITY_SESSION_KEY, False):
-        return ""
-    upload_error = st.session_state.get(VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY)
-    if upload_error:
-        return str(upload_error)
-    prompt_text = _get_voxcpm_prompt_text()
-    if not prompt_text:
-        return tr("VoxCPM Prompt Text Required")
-    if (
-        st.session_state.get(VOXCPM_SEPARATE_PROMPT_AUDIO_SESSION_KEY, False)
-        and not _get_voxcpm_prompt_audio()
-    ):
-        return tr("VoxCPM Prompt Pair Required")
-    return ""
 
 
-def _get_voxcpm_preview_validation_error(
-    selected_tts_server: str,
-    voice_name: str,
-) -> str:
-    if selected_tts_server != "voxcpm" and not voice.is_voxcpm_voice(voice_name):
-        return ""
-    reference_error = st.session_state.get(VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY)
-    if reference_error:
-        return str(reference_error)
-    return _get_voxcpm_prompt_validation_error()
 
 
-def _sync_voxcpm_reference_audio(uploaded_file) -> bytes | None:
-    """Normalize a new upload once and keep only bounded WAV bytes in session."""
-    if uploaded_file is None:
-        st.session_state.pop(VOXCPM_REFERENCE_AUDIO_SESSION_KEY, None)
-        st.session_state.pop(VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY, None)
-        _clear_voxcpm_prompt_state()
-        st.session_state.pop(VOXCPM_HIGH_FIDELITY_SESSION_KEY, None)
-        return None
-
-    upload_size = int(getattr(uploaded_file, "size", 0) or 0)
-    if upload_size <= 0:
-        st.session_state.pop(VOXCPM_REFERENCE_AUDIO_SESSION_KEY, None)
-        _clear_voxcpm_prompt_state()
-        st.session_state[VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY] = tr(
-            "VoxCPM Reference Audio Empty"
-        )
-        return None
-    if upload_size > voice.VOXCPM_REFERENCE_AUDIO_MAX_UPLOAD_BYTES:
-        st.session_state.pop(VOXCPM_REFERENCE_AUDIO_SESSION_KEY, None)
-        _clear_voxcpm_prompt_state()
-        st.session_state[VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY] = tr(
-            "VoxCPM Reference Audio Upload Too Large"
-        ).format(limit=voice.VOXCPM_REFERENCE_AUDIO_MAX_UPLOAD_BYTES // (1024 * 1024))
-        return None
-
-    previous_digest = _get_voxcpm_reference_audio_digest()
-    raw_audio = uploaded_file.getvalue()
-    upload_digest = hashlib.sha256(raw_audio).hexdigest()
-    cached = st.session_state.get(VOXCPM_REFERENCE_AUDIO_SESSION_KEY)
-    if isinstance(cached, dict) and cached.get("upload_digest") == upload_digest:
-        st.session_state.pop(VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY, None)
-        return _get_voxcpm_reference_audio()
-
-    try:
-        with st.spinner(tr("Validating VoxCPM Reference Audio")):
-            wav_audio = voice.prepare_voxcpm_reference_audio(
-                raw_audio,
-                Path(str(getattr(uploaded_file, "name", ""))).suffix,
-            )
-    except ValueError as exc:
-        # Do not retain a prior clip after the user selects a replacement that
-        # fails validation. Otherwise preview and generation could silently use
-        # a different person's voice than the one currently shown in the UI.
-        st.session_state.pop(VOXCPM_REFERENCE_AUDIO_SESSION_KEY, None)
-        _clear_voxcpm_prompt_state()
-        st.session_state[VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY] = str(exc)
-        return None
-
-    st.session_state[VOXCPM_REFERENCE_AUDIO_SESSION_KEY] = {
-        "upload_digest": upload_digest,
-        "audio_digest": hashlib.sha256(wav_audio).hexdigest(),
-        "audio_bytes": wav_audio,
-    }
-    if (
-        previous_digest != hashlib.sha256(wav_audio).hexdigest()
-        and not st.session_state.get(VOXCPM_SEPARATE_PROMPT_AUDIO_SESSION_KEY, False)
-    ):
-        _clear_voxcpm_prompt_transcript()
-    st.session_state.pop(VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY, None)
-    return bytes(wav_audio)
 
 
-def _sync_voxcpm_prompt_audio(uploaded_file) -> bytes | None:
-    """Normalize the optional delivery example without persisting its content."""
-    if uploaded_file is None:
-        st.session_state.pop(VOXCPM_PROMPT_AUDIO_SESSION_KEY, None)
-        st.session_state.pop(VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY, None)
-        return None
-
-    upload_size = int(getattr(uploaded_file, "size", 0) or 0)
-    if upload_size <= 0:
-        st.session_state.pop(VOXCPM_PROMPT_AUDIO_SESSION_KEY, None)
-        st.session_state[VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY] = tr(
-            "VoxCPM Prompt Audio Empty"
-        )
-        return None
-    if upload_size > voice.VOXCPM_REFERENCE_AUDIO_MAX_UPLOAD_BYTES:
-        st.session_state.pop(VOXCPM_PROMPT_AUDIO_SESSION_KEY, None)
-        st.session_state[VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY] = tr(
-            "VoxCPM Prompt Audio Upload Too Large"
-        ).format(limit=voice.VOXCPM_REFERENCE_AUDIO_MAX_UPLOAD_BYTES // (1024 * 1024))
-        return None
-
-    previous_digest = _get_voxcpm_prompt_audio_digest()
-    raw_audio = uploaded_file.getvalue()
-    upload_digest = hashlib.sha256(raw_audio).hexdigest()
-    cached = st.session_state.get(VOXCPM_PROMPT_AUDIO_SESSION_KEY)
-    if isinstance(cached, dict) and cached.get("upload_digest") == upload_digest:
-        st.session_state.pop(VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY, None)
-        return _get_voxcpm_prompt_audio()
-
-    try:
-        with st.spinner(tr("Validating VoxCPM Prompt Audio")):
-            wav_audio = voice.prepare_voxcpm_reference_audio(
-                raw_audio,
-                Path(str(getattr(uploaded_file, "name", ""))).suffix,
-            )
-    except ValueError as exc:
-        st.session_state.pop(VOXCPM_PROMPT_AUDIO_SESSION_KEY, None)
-        st.session_state[VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY] = str(exc)
-        return None
-
-    st.session_state[VOXCPM_PROMPT_AUDIO_SESSION_KEY] = {
-        "upload_digest": upload_digest,
-        "audio_digest": hashlib.sha256(wav_audio).hexdigest(),
-        "audio_bytes": wav_audio,
-    }
-    if previous_digest != hashlib.sha256(wav_audio).hexdigest():
-        _clear_voxcpm_prompt_transcript()
-    st.session_state.pop(VOXCPM_PROMPT_AUDIO_ERROR_SESSION_KEY, None)
-    return bytes(wav_audio)
 
 
 def _get_voice_preview_provider_signature(tts_server: str) -> dict:
@@ -7032,59 +6645,8 @@ def _get_voice_preview_provider_signature(tts_server: str) -> dict:
     服务地址、区域或凭证发生变化时都必须重新生成试听，否则界面可能继续播放
     旧 Provider 配置下的音频，让用户误判当前设置已经生效。
     """
-    if tts_server == "azure-tts-v2":
-        return {
-            "speech_region": config.azure.get("speech_region", ""),
-            "credential": _credential_signature(config.azure.get("speech_key", "")),
-        }
-    if tts_server == "siliconflow":
-        return {
-            "credential": _credential_signature(config.siliconflow.get("api_key", ""))
-        }
-    if tts_server == "gemini-tts":
-        return {
-            "credential": _credential_signature(config.app.get("gemini_api_key", ""))
-        }
-    if tts_server == "mimo-tts":
-        return {"credential": _credential_signature(config.app.get("mimo_api_key", ""))}
-    if tts_server == "minimax-tts":
-        return {
-            "base_url": voice.get_minimax_tts_endpoint(),
-            "model_id": config.minimax_tts.get("model_id", ""),
-            "voice_id": config.minimax_tts.get("voice_id", ""),
-            "credential": _credential_signature(voice.get_minimax_tts_api_key()),
-        }
-    if tts_server == "elevenlabs":
-        return {
-            "model_id": config.elevenlabs.get("model_id", ""),
-            "credential": _credential_signature(config.elevenlabs.get("api_key", "")),
-        }
-    if tts_server == "chatterbox":
-        return {
-            "base_url": config.chatterbox.get("base_url", ""),
-            "model_id": config.chatterbox.get("model_id", ""),
-            "credential": _credential_signature(config.chatterbox.get("api_key", "")),
-        }
-    if tts_server == "kokoro":
-        return {
-            "base_url": config.kokoro.get("base_url", ""),
-            "model_id": config.kokoro.get("model_id", ""),
-            "credential": _credential_signature(config.kokoro.get("api_key", "")),
-        }
-    if tts_server == "voxcpm":
-        return {
-            "base_url": config.voxcpm.get("base_url", ""),
-            "model_id": config.voxcpm.get("model_id", ""),
-            "voice_id": config.voxcpm.get("voice_id", "default"),
-            "credential": _credential_signature(config.voxcpm.get("api_key", "")),
-            "reference_audio": _get_voxcpm_reference_audio_digest(),
-            "prompt_audio": _get_voxcpm_effective_prompt_audio_digest(),
-            "prompt_text": _credential_signature(
-                _get_voxcpm_prompt_text()
-                if st.session_state.get(VOXCPM_HIGH_FIDELITY_SESSION_KEY, False)
-                else ""
-            ),
-        }
+    if tts_server == "voicestudio":
+        return {"base_url": config.voicestudio.get("base_url", "")}
     return {}
 
 
@@ -7096,15 +6658,8 @@ def _synthesize_voice_preview(
     voice_name: str,
     voice_rate: float,
     voice_volume: float,
-    voxcpm_reference_audio: bytes | None = None,
-    voxcpm_prompt_audio: bytes | None = None,
-    voxcpm_prompt_text: str = "",
 ) -> dict | None:
-    """生成一次试听并转为内存缓存，临时文件不会跨会话长期保留。"""
-    if selected_tts_server == "chatterbox":
-        _sync_chatterbox_config_from_session_state()
-    if selected_tts_server == "kokoro":
-        _sync_kokoro_config_from_session_state()
+    """Buat satu pratinjau suara dan simpan di memori; berkas sementara tidak bertahan antar sesi."""
 
     temp_dir = utils.storage_dir("temp", create=True)
     audio_file = os.path.join(temp_dir, f"tmp-voice-{str(uuid4())}.mp3")
@@ -7124,11 +6679,6 @@ def _synthesize_voice_preview(
                 "voice_file": audio_file,
                 "voice_volume": voice_volume,
             }
-            if voxcpm_reference_audio is not None:
-                tts_kwargs["voxcpm_reference_audio"] = voxcpm_reference_audio
-            if voxcpm_prompt_audio is not None:
-                tts_kwargs["voxcpm_prompt_audio"] = voxcpm_prompt_audio
-                tts_kwargs["voxcpm_prompt_text"] = voxcpm_prompt_text
             sub_maker = voice.tts(**tts_kwargs)
         if not sub_maker or not os.path.exists(audio_file):
             logger.error(f"{preview_type} voice preview did not produce an audio file")
@@ -7201,10 +6751,7 @@ def _render_voice_preview(params, friendly_names, selected_tts_server, voice_nam
 
     sample_content = _get_voice_preview_sample(voice_name)
     provider_signature = _get_voice_preview_provider_signature(selected_tts_server)
-    preview_validation_error = _get_voxcpm_preview_validation_error(
-        selected_tts_server,
-        voice_name,
-    )
+    preview_validation_error = None
     preview_columns = st.columns(2)
     short_preview_requested = preview_columns[0].button(
         tr("Play Voice"),
@@ -7272,21 +6819,6 @@ def _render_voice_preview(params, friendly_names, selected_tts_server, voice_nam
                         voice_name=voice_name,
                         voice_rate=params.voice_rate,
                         voice_volume=params.voice_volume,
-                        voxcpm_reference_audio=(
-                            _get_voxcpm_reference_audio()
-                            if selected_tts_server == "voxcpm"
-                            else None
-                        ),
-                        voxcpm_prompt_audio=(
-                            _get_voxcpm_effective_prompt_audio()
-                            if selected_tts_server == "voxcpm"
-                            else None
-                        ),
-                        voxcpm_prompt_text=(
-                            _get_voxcpm_prompt_text()
-                            if selected_tts_server == "voxcpm"
-                            else ""
-                        ),
                     )
             except Exception as exc:
                 logger.exception(f"failed to generate {preview_type} voice preview")
@@ -7357,7 +6889,7 @@ def _get_reusable_full_voice_preview(params, voice_mode: str) -> dict | None:
         return None
 
     script_content = str(params.video_script or "").strip()
-    selected_tts_server = config.ui.get("tts_server", "azure-tts-v1")
+    selected_tts_server = config.ui.get("tts_server", "voicestudio")
     if (
         not script_content
         or not params.voice_name
@@ -7407,153 +6939,29 @@ def _get_reusable_full_voice_preview(params, voice_mode: str) -> dict | None:
     }
 
 
-def _sync_minimax_tts_api_key_input():
-    """
-    同步 MiniMax TTS 密码控件，并返回当前有效 Key。
-
-    TTS 专用 Key 为空时允许复用 MiniMax LLM Key。共享 Key 只用于当前控件和
-    请求，不自动复制到 [minimax_tts]，避免同一凭证在配置文件中重复维护。
-    """
-    widget_key = "minimax_tts_api_key_input"
-    configured_key = str(config.minimax_tts.get("api_key", "") or "").strip()
-    shared_key = str(
-        config.app.get("minimax_api_key", "") or os.getenv("MINIMAX_API_KEY", "") or ""
-    ).strip()
-    effective_key = configured_key or shared_key
-    had_widget_state = widget_key in st.session_state
-    entered_key = str(st.session_state.get(widget_key, "") or "").strip()
-
-    if not entered_key and effective_key:
-        # 浏览器重连可能重放空密码状态。恢复已配置凭证，防止空值覆盖配置，
-        # 同时确保当前 rerun 的试听请求可以直接使用有效 Key。
-        st.session_state[widget_key] = effective_key
-        entered_key = effective_key
-        if had_widget_state:
-            logger.debug("restored MiniMax TTS API key after empty session replay")
-    elif not had_widget_state:
-        st.session_state[widget_key] = effective_key
-        entered_key = effective_key
-
-    if entered_key and entered_key != effective_key:
-        _set_runtime_config("minimax_tts", "api_key", entered_key)
-
-    return entered_key
 
 
-def _get_cached_minimax_voices(api_key: str, endpoint: str) -> list[dict[str, str]]:
-    """按站点和凭证摘要读取当前会话中的 MiniMax 音色查询结果。"""
-    cache = st.session_state.get("minimax_tts_voice_catalog_cache", {})
-    cache_key = f"{endpoint}|{_credential_signature(api_key)}"
-    cached_voices = cache.get(cache_key, [])
-    return cached_voices if isinstance(cached_voices, list) else []
 
 
-def _cache_minimax_voices(
-    api_key: str,
-    endpoint: str,
-    voices: list[dict[str, str]],
-):
-    """缓存主动查询到的音色，避免普通控件 rerun 后重复请求 MiniMax。"""
-    cache = st.session_state.setdefault("minimax_tts_voice_catalog_cache", {})
-    cache_key = f"{endpoint}|{_credential_signature(api_key)}"
-    cache[cache_key] = voices
 
 
-def _render_minimax_tts_settings() -> tuple[list[str], dict[str, str]]:
-    """渲染 MiniMax TTS 配置，并返回统一音色选择器使用的选项和文案。"""
-    effective_api_key = _sync_minimax_tts_api_key_input()
-    effective_api_key = st.text_input(
-        tr("MiniMax TTS API Key"),
-        type="password",
-        key="minimax_tts_api_key_input",
-    ).strip()
 
-    dedicated_key = str(config.minimax_tts.get("api_key", "") or "").strip()
-    minimax_tts_endpoints = [voice.MINIMAX_TTS_GLOBAL_URL, voice.MINIMAX_TTS_CN_URL]
-    effective_endpoint = voice.get_minimax_tts_endpoint()
-    if effective_endpoint not in minimax_tts_endpoints:
-        effective_endpoint = voice.MINIMAX_TTS_GLOBAL_URL
-    minimax_tts_base_url = stable_selectbox(
-        tr("MiniMax TTS Endpoint"),
-        options=minimax_tts_endpoints,
-        default_value=effective_endpoint,
-        key="minimax_tts_endpoint_select",
-        # 复用 LLM Key 时必须跟随 LLM 所在区域，避免界面允许选择一个实际
-        # 不会生效的地址；填写独立 TTS Key 后即可单独选择站点。
-        disabled=not dedicated_key,
-    )
-    if dedicated_key:
-        _set_runtime_config("minimax_tts", "base_url", minimax_tts_base_url)
 
-    configured_model = config.minimax_tts.get(
-        "model_id", voice.MINIMAX_TTS_DEFAULT_MODEL
-    )
-    if configured_model not in voice.MINIMAX_TTS_MODELS:
-        configured_model = voice.MINIMAX_TTS_DEFAULT_MODEL
-    minimax_tts_model = stable_selectbox(
-        tr("MiniMax TTS Model"),
-        options=list(voice.MINIMAX_TTS_MODELS),
-        default_value=configured_model,
-        key="minimax_tts_model_select",
-    )
-    _set_runtime_config("minimax_tts", "model_id", minimax_tts_model)
 
-    if st.button(
-        tr("Load MiniMax Voices"),
-        key="load_minimax_voices_button",
-        icon=":material/refresh:",
-        use_container_width=True,
-    ):
-        try:
-            available_voices = voice.get_minimax_voice_catalog(
-                api_key=effective_api_key,
-                endpoint=minimax_tts_base_url,
-                voice_type="all",
-            )
-        except Exception as exc:
-            # 这里必须把异常暴露给用户并记录日志。账号区域不匹配、Key 权限不足
-            # 或网络失败都很常见，静默返回空列表会让用户误以为账号没有音色。
-            logger.warning(f"load MiniMax voices failed: {exc}")
-            st.error(tr("MiniMax Voices Load Failed").format(error=str(exc)))
-        else:
-            _cache_minimax_voices(
-                effective_api_key,
-                minimax_tts_base_url,
-                available_voices,
-            )
-            st.success(tr("MiniMax Voices Loaded").format(count=len(available_voices)))
 
-    available_voices = _get_cached_minimax_voices(
-        effective_api_key,
-        minimax_tts_base_url,
-    )
-    voice_labels = {
-        f"minimax:{item['voice_id']}": (
-            f"{item['voice_name']} ({item['voice_id']})"
-            if item["voice_name"] != item["voice_id"]
-            else item["voice_id"]
-        )
-        for item in available_voices
-    }
-    configured_voice_id = str(
-        config.minimax_tts.get("voice_id", voice.MINIMAX_TTS_DEFAULT_VOICE)
-        or voice.MINIMAX_TTS_DEFAULT_VOICE
-    ).strip()
-    configured_voice = f"minimax:{configured_voice_id}"
-    # 尚未点击获取音色、接口暂时不可用或配置使用列表外克隆音色时，仍保留
-    # 当前 Voice ID，确保原有生成流程不依赖远端音色查询结果。
-    voice_labels.setdefault(configured_voice, configured_voice_id)
-    return list(voice_labels), voice_labels
+
+
 
 
 def _sync_elevenlabs_api_key_input():
     """
-    同步 ElevenLabs 密码控件、持久化配置和环境变量，并返回当前有效 Key。
+    Sinkronkan kolom kata sandi ElevenLabs, konfigurasi tersimpan, dan variabel
+    lingkungan, lalu kembalikan kunci yang berlaku.
 
-    Streamlit 在浏览器标签页连接到重启后的服务时，可能重放一个空的密码控件
-    状态。这个空值无法与用户主动清空可靠区分，因此当配置文件或环境变量仍有
-    Key 时，优先恢复有效值，防止空状态覆盖配置并确保本次 rerun 能立即加载
-    音色。需要彻底删除 Key 时应修改配置文件或环境变量，避免重连误判。
+    Saat tab browser tersambung kembali ke server yang di-restart, Streamlit dapat
+    memutar ulang status kolom kosong. Nilai kosong itu tidak bisa dibedakan dari
+    pengguna yang sengaja mengosongkannya, jadi bila konfigurasi atau variabel
+    lingkungan masih punya kunci, kunci itu dipulihkan agar tidak tertimpa kosong.
     """
     widget_key = "elevenlabs_api_key_input"
     configured_key = str(config.elevenlabs.get("api_key", "") or "").strip()
@@ -7563,56 +6971,25 @@ def _sync_elevenlabs_api_key_input():
     entered_key = str(st.session_state.get(widget_key, "") or "").strip()
 
     if not entered_key and effective_key:
-        # 重连后的空状态不能覆盖有效凭证，同时必须在渲染音色列表之前恢复，
-        # 否则配置文件虽然没有被清空，当前页面仍会使用空 Key 请求 ElevenLabs。
         st.session_state[widget_key] = effective_key
         entered_key = effective_key
         if had_widget_state:
             logger.debug("restored ElevenLabs API key after empty session replay")
     elif not had_widget_state:
-        # 先初始化再创建控件，避免同时传 value 和 session_state 触发 Streamlit
-        # 的默认值冲突警告；没有任何 Key 时初始化为空即可。
+        # Inisialisasi sebelum membuat kolom agar tidak memicu peringatan konflik
+        # antara `value` dan session_state.
         st.session_state[widget_key] = entered_key
 
     if entered_key and entered_key != effective_key:
-        # 用户主动输入的新值才落入 config.toml。环境变量作为有效值回填时不会
-        # 被复制到文件，容器或部署平台注入的密钥仍只保留在运行环境中。
-        for cache_key in list(st.session_state.keys()):
-            if str(cache_key).startswith("elevenlabs_voices_"):
-                del st.session_state[cache_key]
+        # Hanya nilai yang diketik pengguna yang disimpan ke config.toml; kunci dari
+        # variabel lingkungan tidak disalin ke file.
         _set_runtime_config("elevenlabs", "api_key", entered_key)
 
     return entered_key
 
 
-def _sync_voxcpm_api_key_input():
-    """恢复 VoxCPM 密码控件在重连时被 Streamlit 重放的空状态。"""
-    widget_key = "voxcpm_api_key_input"
-    configured_key = str(config.voxcpm.get("api_key", "") or "").strip()
-    had_widget_state = widget_key in st.session_state
-    entered_key = str(st.session_state.get(widget_key, "") or "").strip()
-
-    if not entered_key and configured_key:
-        # 浏览器重连可能重放空密码状态。保留已保存凭据，避免本次 rerun
-        # 通过 _set_runtime_config 把 config.toml 中的有效 Key 覆盖为空。
-        st.session_state[widget_key] = configured_key
-        entered_key = configured_key
-        if had_widget_state:
-            logger.debug("restored VoxCPM API key after empty session replay")
-    elif not had_widget_state:
-        st.session_state[widget_key] = entered_key
-
-    return entered_key
-
-
 def _render_elevenlabs_api_key_input(label_key):
-    """
-    渲染 ElevenLabs TTS 与配乐共用的唯一 API Key 输入状态。
-
-    同一页面若为 TTS 和配乐分别使用两个 widget key，Streamlit 会各自保留旧值，
-    后渲染的输入框还会覆盖共享配置。这里统一使用一个 key，并集中处理环境变量
-    回填、配置更新和音色缓存失效，确保界面显示与后台任务始终读取同一个值。
-    """
+    """Tampilkan satu-satunya kolom API Key ElevenLabs (dipakai untuk musik latar)."""
     _sync_elevenlabs_api_key_input()
     return st.text_input(
         tr(label_key),
@@ -7929,17 +7306,7 @@ def _render_background_music_settings(params, elevenlabs_api_key_rendered=False)
 
 
 def _voice_rate_not_supported_help(tts_server, voice_name):
-    """
-    Return the help for the disabled speed selector when the provider has no
-    numeric speed parameter (Gemini TTS, MiMo TTS and VoxCPM), or "" when it
-    applies the speed. The disabled selector keeps the saved speed.
-    """
-    if tts_server == "gemini-tts" or (voice_name and voice.is_gemini_voice(voice_name)):
-        return tr("Gemini TTS Speed Not Supported")
-    if tts_server == "mimo-tts" or (voice_name and voice.is_mimo_voice(voice_name)):
-        return tr("MiMo TTS Speed Not Supported")
-    if tts_server == "voxcpm" or (voice_name and voice.is_voxcpm_voice(voice_name)):
-        return tr("VoxCPM Speed Not Supported")
+    """Bantuan untuk pemilih kecepatan yang dinonaktifkan; VoiceStudio selalu mendukung kecepatan."""
     return ""
 
 
@@ -7951,7 +7318,7 @@ def _render_audio_settings(panel, params):
 
             # 配音方式是音频设置的一级状态，负责明确区分自动配音、用户上传和无配音。
             # 旧配置没有 voice_mode 时，根据原 tts_server 的无配音哨兵保持兼容。
-            saved_tts_server = config.ui.get("tts_server", "azure-tts-v1")
+            saved_tts_server = config.ui.get("tts_server", "voicestudio")
             saved_voice_mode = config.ui.get("voice_mode")
             if saved_voice_mode not in {
                 VOICE_MODE_TTS,
@@ -7980,209 +7347,48 @@ def _render_audio_settings(panel, params):
             _set_runtime_config("ui", "voice_mode", voice_mode)
             tts_mode_enabled = voice_mode == VOICE_MODE_TTS
 
-            # Provider 下拉只负责选择自动配音服务；无配音已经由上方模式控制，
-            # 不再作为 TTS Provider 混入列表，避免两个入口表达同一状态。
-            tts_servers = [
-                ("azure-tts-v1", "Azure TTS V1 (Edge TTS)"),
-                ("azure-tts-v2", "Azure TTS V2"),
-                ("siliconflow", "SiliconFlow TTS"),
-                ("gemini-tts", "Google Gemini TTS"),
-                ("mimo-tts", "Xiaomi MiMo TTS"),
-                ("minimax-tts", "MiniMax TTS"),
-                ("elevenlabs", "ElevenLabs TTS"),
-                ("chatterbox", "Chatterbox TTS"),
-                ("kokoro", "Kokoro TTS"),
-                ("fish_audio", "Fish Audio TTS"),
-                ("voxcpm", "VoxCPM TTS"),
-            ]
-
-            tts_server_values = [server_value for server_value, _ in tts_servers]
-            if saved_tts_server not in tts_server_values:
-                saved_tts_server = "azure-tts-v1"
-
-            if tts_mode_enabled:
-                selected_tts_server = stable_selectbox(
-                    tr("Voiceover Service"),
-                    options=tts_server_values,
-                    default_value=saved_tts_server,
-                    key="tts_server_select",
-                    format_func=lambda value: dict(
-                        (v, label) for v, label in tts_servers
-                    )[value],
-                )
-            else:
-                # 非自动配音模式不渲染 TTS 控件，但保留上次选择，切回后可以继续使用。
-                selected_tts_server = saved_tts_server
-
+            # Satu-satunya penyedia suara adalah VoiceStudio lokal (TTS dan STT).
+            selected_tts_server = "voicestudio"
             _set_runtime_config("ui", "tts_server", selected_tts_server)
 
-            # 服务说明紧跟 Provider 选择，先告诉用户需要准备什么，再进入音色和
-            # 凭证配置。没有说明的 Provider 不渲染空提示块。
-            if tts_mode_enabled:
-                provider_tips = get_tts_provider_tips(selected_tts_server)
-                if provider_tips:
-                    st.info(provider_tips)
-
-            # MiniMax 只复用下方通用“配音声音”选择器。Provider 配置函数负责
-            # 刷新远端音色并返回友好文案，不再额外渲染 Voice ID 和音色下拉框。
-            minimax_voices = []
-            minimax_voice_labels = {}
-            if tts_mode_enabled and selected_tts_server == "minimax-tts":
-                minimax_voices, minimax_voice_labels = _render_minimax_tts_settings()
-
-            # 根据选择的TTS服务器获取声音列表
-            filtered_voices = []
             saved_voice_name = config.ui.get("voice_name", "")
             elevenlabs_api_key_rendered = False
 
-            if not tts_mode_enabled:
-                # 上传音频和无配音模式不加载远程音色，减少无意义的网络请求和界面噪音。
-                filtered_voices = []
-            elif selected_tts_server == "siliconflow":
-                # 获取硅基流动的声音列表
-                filtered_voices = voice.get_siliconflow_voices()
-            elif selected_tts_server == "gemini-tts":
-                # 获取Gemini TTS的声音列表
-                filtered_voices = voice.get_gemini_voices()
-            elif selected_tts_server == "mimo-tts":
-                # 获取 Xiaomi MiMo TTS 的预置音色列表
-                filtered_voices = voice.get_mimo_voices()
-            elif selected_tts_server == "minimax-tts":
-                filtered_voices = minimax_voices
-            elif selected_tts_server == "elevenlabs":
-                # 音色列表位于 Key 输入框之前渲染，必须先统一恢复重连状态并读取
-                # 配置/环境变量，否则页面会用空 Key 加载并缓存空音色列表。
-                saved_elevenlabs_api_key = _sync_elevenlabs_api_key_input()
-                cache_key = f"elevenlabs_voices_{saved_elevenlabs_api_key}"
-                if cache_key not in st.session_state:
-                    st.session_state[cache_key] = voice.get_elevenlabs_voices(
-                        saved_elevenlabs_api_key
-                    )
-                filtered_voices = st.session_state[cache_key]
-            elif selected_tts_server == "chatterbox":
-                # 自托管 Chatterbox 服务的预置音色（来自 [chatterbox] voices 配置）
-                _sync_chatterbox_config_from_session_state()
-                filtered_voices = voice.get_chatterbox_voices()
-            elif selected_tts_server == "kokoro":
-                # 自托管 Kokoro 服务的音色：[kokoro] voices 为空时从服务端 /audio/voices 读取
-                _sync_kokoro_config_from_session_state()
-                filtered_voices = _get_kokoro_voice_options(saved_voice_name)
-            elif selected_tts_server == "fish_audio":
-                filtered_voices = voice.get_fish_audio_voices()
-            elif selected_tts_server == "voxcpm":
-                filtered_voices = voice.get_voxcpm_voices()
+            if tts_mode_enabled:
+                # Mode unggah audio dan tanpa suara tidak memuat daftar suara dari jaringan.
+                filtered_voices = voice.get_voicestudio_voices()
             else:
-                # 获取Azure的声音列表
-                all_voices = voice.get_all_azure_voices(filter_locals=None)
-
-                # 根据选择的TTS服务器筛选声音
-                for v in all_voices:
-                    if selected_tts_server == "azure-tts-v2":
-                        # V2版本的声音名称中包含"v2"
-                        if "V2" in v:
-                            filtered_voices.append(v)
-                    else:
-                        # V1版本的声音名称中不包含"v2"
-                        if "V2" not in v:
-                            filtered_voices.append(v)
+                filtered_voices = []
 
             def _friendly(v):
                 if voice.is_no_voice(v):
                     return tr("No Voice Selected")
-                if voice.is_elevenlabs_voice(v):
-                    parts = v.split(":", 2)
-                    return parts[2] if len(parts) >= 3 else v
-                if voice.is_chatterbox_voice(v) or voice.is_kokoro_voice(v):
-                    name = v.split(":", 1)[1] if ":" in v else v
-                    return name.replace("-Female", "").replace("-Male", "")
-                if voice.is_minimax_voice(v):
-                    return minimax_voice_labels.get(v, v.split(":", 1)[1])
-                if voice.is_fish_audio_voice(v):
-                    parts = v.split(":", 2)
-                    display_name = parts[2] if len(parts) >= 3 else v
-                    return (
-                        display_name.replace("Female", tr("Female"))
-                        .replace("Male", tr("Male"))
-                    )
-                if voice.is_voxcpm_voice(v):
-                    return v.split(":", 1)[1] or DEFAULT_VOXCPM_VOICE
-                return (
-                    v.replace("Female", tr("Female"))
-                    .replace("Male", tr("Male"))
-                    .replace("Neural", "")
-                )
+                name = v.split(":", 1)[1] if ":" in v else v
+                return name.replace("-Female", "").replace("-Male", "")
 
             friendly_names = {v: _friendly(v) for v in filtered_voices}
 
-            # Gemini 旧目录把推测的性别放在值里（例如 Charon-Male）。按基础
-            # voice name 映射到新的官方风格值，升级后继续保留用户原来的音色。
-            if (
-                selected_tts_server == "gemini-tts"
-                and saved_voice_name not in friendly_names
-            ):
-                saved_gemini_voice = voice.parse_gemini_voice_name(saved_voice_name)
-                saved_voice_name = next(
-                    (
-                        candidate
-                        for candidate in filtered_voices
-                        if voice.parse_gemini_voice_name(candidate)
-                        == saved_gemini_voice
-                    ),
-                    saved_voice_name,
-                )
-
+            # Pakai suara tersimpan bila masih ada di daftar; jika tidak, suara pertama.
             saved_voice_name_index = 0
-
-            # 检查保存的声音是否在当前筛选的声音列表中
             if saved_voice_name in friendly_names:
                 saved_voice_name_index = list(friendly_names.keys()).index(
                     saved_voice_name
                 )
-            else:
-                # 如果不在，则根据当前UI语言选择一个默认声音
-                for i, v in enumerate(filtered_voices):
-                    if v.lower().startswith(st.session_state["ui_language"].lower()):
-                        saved_voice_name_index = i
-                        break
 
-            # 如果没有找到匹配的声音，使用第一个声音
-            if saved_voice_name_index >= len(friendly_names) and friendly_names:
-                saved_voice_name_index = 0
-
-            # 确保有声音可选
             if tts_mode_enabled and friendly_names:
                 voice_name = stable_selectbox(
                     tr("Voiceover Voice"),
                     options=list(friendly_names.keys()),
                     default_value=list(friendly_names.keys())[saved_voice_name_index],
                     key=f"speech_synthesis_select_{selected_tts_server}",
-                    format_func=lambda value: friendly_names.get(
-                        value,
-                        str(value).removeprefix("minimax:"),
-                    ),
-                    # MiniMax 支持用户直接输入列表外的克隆或生成音色 ID；其它
-                    # Provider 维持原选择器行为，不扩大本次修改的影响范围。
-                    accept_new_options=selected_tts_server == "minimax-tts",
+                    format_func=lambda value: friendly_names.get(value, str(value)),
                 )
-
-                if selected_tts_server == "minimax-tts":
-                    custom_voice_id = str(voice_name or "").strip()
-                    if custom_voice_id and not voice.is_minimax_voice(custom_voice_id):
-                        voice_name = f"minimax:{custom_voice_id}"
-                    if voice.is_minimax_voice(voice_name):
-                        _set_runtime_config(
-                            "minimax_tts",
-                            "voice_id",
-                            voice_name.split(":", 1)[1],
-                        )
-
                 params.voice_name = voice_name
                 if not voice.is_no_voice(voice_name):
-                    # 占位 sentinel 仅用于非自动模式的禁用展示，不覆盖用户上一次
-                    # 真正选择的音色，切回自动配音后可以恢复原设置。
+                    # Sentinel "tanpa suara" tidak menimpa pilihan suara terakhir
+                    # pengguna, sehingga dapat dipulihkan saat kembali ke mode TTS.
                     _set_runtime_config("ui", "voice_name", voice_name)
             elif tts_mode_enabled:
-                # 如果没有声音可选，显示提示信息
                 st.warning(
                     tr(
                         "No voices available for the selected TTS server. Please select another server."
@@ -8192,367 +7398,21 @@ def _render_audio_settings(panel, params):
                 params.voice_name = ""
                 _set_runtime_config("ui", "voice_name", "")
             else:
-                # 非自动配音模式不显示音色控件，只复用保存值维持参数结构稳定。
+                # Mode non-TTS tidak menampilkan kontrol suara; pakai nilai tersimpan
+                # agar struktur parameter tetap stabil.
                 voice_name = saved_voice_name or voice.NO_VOICE_NAME
                 params.voice_name = voice_name
 
-            # 当选择V2版本或者声音是V2声音时，显示服务区域和API key输入框
-            if tts_mode_enabled and (
-                selected_tts_server == "azure-tts-v2"
-                or (voice_name and voice.is_azure_v2_voice(voice_name))
-            ):
-                saved_azure_speech_region = config.azure.get("speech_region", "")
-                saved_azure_speech_key = config.azure.get("speech_key", "")
-                azure_speech_region = st.text_input(
-                    tr("Speech Region"),
-                    value=saved_azure_speech_region,
-                    key="azure_speech_region_input",
-                )
-                azure_speech_key = st.text_input(
-                    tr("Speech Key"),
-                    value=saved_azure_speech_key,
-                    type="password",
-                    key="azure_speech_key_input",
-                )
-                _set_runtime_config("azure", "speech_region", azure_speech_region)
-                _set_runtime_config("azure", "speech_key", azure_speech_key)
-
-            if tts_mode_enabled and selected_tts_server == "gemini-tts":
-                # Gemini TTS 与 Gemini LLM 共用同一份密钥；在音频面板提供直接入口，
-                # 用户无需先切换 LLM Provider 才能完成语音配置。
-                gemini_tts_api_key = st.text_input(
-                    tr("Gemini API Key"),
-                    value=config.app.get("gemini_api_key", ""),
-                    type="password",
-                    key="gemini_tts_api_key_input",
-                )
-                _set_runtime_config("app", "gemini_api_key", gemini_tts_api_key)
-
-            # 当选择硅基流动时，显示API key输入框和说明信息
-            if tts_mode_enabled and (
-                selected_tts_server == "siliconflow"
-                or (voice_name and voice.is_siliconflow_voice(voice_name))
-            ):
-                saved_siliconflow_api_key = config.siliconflow.get("api_key", "")
-
-                siliconflow_api_key = st.text_input(
-                    tr("SiliconFlow API Key"),
-                    value=saved_siliconflow_api_key,
-                    type="password",
-                    key="siliconflow_api_key_input",
-                )
-
-                _set_runtime_config("siliconflow", "api_key", siliconflow_api_key)
-
-            # 当选择 Xiaomi MiMo TTS 时，复用 MiMo LLM provider 的 API Key。
-            # 这样用户如果同时使用 MiMo 生成文案和语音，只需要维护一份密钥。
-            if tts_mode_enabled and (
-                selected_tts_server == "mimo-tts"
-                or (voice_name and voice.is_mimo_voice(voice_name))
-            ):
-                saved_mimo_api_key = config.app.get("mimo_api_key", "")
-
-                mimo_api_key = st.text_input(
-                    tr("MiMo API Key"),
-                    value=saved_mimo_api_key,
-                    type="password",
-                    key="mimo_tts_api_key_input",
-                )
-
-                _set_runtime_config("app", "mimo_api_key", mimo_api_key)
-
-            # ElevenLabs API key section
-            if tts_mode_enabled and (
-                selected_tts_server == "elevenlabs"
-                or (voice_name and voice.is_elevenlabs_voice(voice_name))
-            ):
-                _render_elevenlabs_api_key_input(
-                    "ElevenLabs API Key",
-                )
-                elevenlabs_api_key_rendered = True
-
-                _elevenlabs_models = [
-                    "eleven_multilingual_v2",
-                    "eleven_flash_v2_5",
-                    "eleven_v3",
-                ]
-                saved_elevenlabs_model = config.elevenlabs.get(
-                    "model_id", "eleven_multilingual_v2"
-                )
-                if saved_elevenlabs_model not in _elevenlabs_models:
-                    saved_elevenlabs_model = "eleven_multilingual_v2"
-                elevenlabs_model = stable_selectbox(
-                    tr("ElevenLabs Model"),
-                    options=_elevenlabs_models,
-                    default_value=saved_elevenlabs_model,
-                    key="elevenlabs_model_select",
-                )
-                _set_runtime_config("elevenlabs", "model_id", elevenlabs_model)
-
-            # Fish Audio API settings section
-            if tts_mode_enabled and (
-                selected_tts_server == "fish_audio"
-                or (voice_name and voice.is_fish_audio_voice(voice_name))
-            ):
-                saved_fish_api_key = (
-                    config.fish_audio.get("api_key", "")
-                    if hasattr(config, "fish_audio") and isinstance(config.fish_audio, dict)
-                    else ""
-                )
-                fish_audio_api_key = st.text_input(
-                    tr("Fish Audio API Key"),
-                    value=saved_fish_api_key,
-                    type="password",
-                    key="fish_audio_api_key_input",
-                )
-                _set_runtime_config("fish_audio", "api_key", fish_audio_api_key)
-
-                _fish_audio_models = [
-                    "s2.1-pro-free",
-                    "s2.1-pro",
-                    "s2-pro",
-                ]
-                saved_fish_model = (
-                    config.fish_audio.get("model", "s2.1-pro-free")
-                    if hasattr(config, "fish_audio") and isinstance(config.fish_audio, dict)
-                    else "s2.1-pro-free"
-                )
-                if saved_fish_model not in _fish_audio_models:
-                    saved_fish_model = "s2.1-pro-free"
-                fish_model = stable_selectbox(
-                    tr("Fish Audio Model"),
-                    options=_fish_audio_models,
-                    default_value=saved_fish_model,
-                    key="fish_audio_model_select",
-                )
-                _set_runtime_config("fish_audio", "model", fish_model)
-
-            # ModelBest hosts VoxCPM behind its streaming Audio Speech API.
-            # The fixed provider endpoint is still editable for compatible
-            # gateways, while the user only has to supply an API key and a
-            # speech_synthesis-capable model id for the standard platform.
-            if tts_mode_enabled and (
-                selected_tts_server == "voxcpm"
-                or (voice_name and voice.is_voxcpm_voice(voice_name))
-            ):
-                _sync_voxcpm_api_key_input()
-                voxcpm_api_key = st.text_input(
-                    tr("VoxCPM API Key"),
-                    type="password",
-                    key="voxcpm_api_key_input",
-                )
-                _set_runtime_config("voxcpm", "api_key", voxcpm_api_key)
-
-                voxcpm_model = st.text_input(
-                    tr("VoxCPM Model ID"),
-                    value=config.voxcpm.get("model_id", ""),
-                    key="voxcpm_model_id_input",
-                    placeholder=tr("VoxCPM Model ID Placeholder"),
-                )
-                _set_runtime_config("voxcpm", "model_id", voxcpm_model.strip())
-
-                voxcpm_base_url = st.text_input(
-                    tr("VoxCPM Base URL"),
-                    value=config.voxcpm.get("base_url") or DEFAULT_VOXCPM_BASE_URL,
-                    key="voxcpm_base_url_input",
-                    placeholder=DEFAULT_VOXCPM_BASE_URL,
+            # Pengaturan server VoiceStudio (dipakai untuk TTS dan STT)
+            if tts_mode_enabled:
+                voicestudio_base_url = st.text_input(
+                    tr("Base Url"),
+                    value=config.voicestudio.get("base_url")
+                    or voice.VOICESTUDIO_DEFAULT_BASE_URL,
+                    key="voicestudio_base_url_input",
                 )
                 _set_runtime_config(
-                    "voxcpm",
-                    "base_url",
-                    (voxcpm_base_url or DEFAULT_VOXCPM_BASE_URL).strip().rstrip("/"),
-                )
-
-                uploaded_reference_audio = st.file_uploader(
-                    tr("VoxCPM Reference Audio"),
-                    type=list(voice.VOXCPM_REFERENCE_AUDIO_FILE_TYPES),
-                    key="voxcpm_reference_audio_uploader",
-                    help=tr("VoxCPM Reference Audio Help"),
-                )
-                reference_audio = _sync_voxcpm_reference_audio(
-                    uploaded_reference_audio
-                )
-                st.caption(tr("VoxCPM Reference Audio Notice"))
-                reference_audio_error = st.session_state.get(
-                    VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY
-                )
-                if reference_audio_error:
-                    st.error(
-                        tr("VoxCPM Reference Audio Invalid").format(
-                            error=reference_audio_error
-                        )
-                    )
-
-                if reference_audio:
-                    high_fidelity_enabled = st.toggle(
-                        tr("VoxCPM High Fidelity Delivery"),
-                        key=VOXCPM_HIGH_FIDELITY_SESSION_KEY,
-                        help=tr("VoxCPM High Fidelity Delivery Help"),
-                    )
-                    if high_fidelity_enabled:
-                        use_separate_prompt_audio = st.toggle(
-                            tr("VoxCPM Separate Prompt Audio"),
-                            key=VOXCPM_SEPARATE_PROMPT_AUDIO_SESSION_KEY,
-                            help=tr("VoxCPM Separate Prompt Audio Help"),
-                        )
-                        _sync_voxcpm_prompt_example_mode(use_separate_prompt_audio)
-                        if use_separate_prompt_audio:
-                            prompt_audio_file = st.file_uploader(
-                                tr("VoxCPM Prompt Audio"),
-                                type=list(voice.VOXCPM_REFERENCE_AUDIO_FILE_TYPES),
-                                key="voxcpm_prompt_audio_uploader",
-                                help=tr("VoxCPM Prompt Audio Help"),
-                            )
-                            _sync_voxcpm_prompt_audio(prompt_audio_file)
-                        else:
-                            _clear_voxcpm_separate_prompt_audio()
-                        effective_prompt_audio = _get_voxcpm_effective_prompt_audio()
-                        if st.button(
-                            tr("Transcribe VoxCPM Prompt Audio"),
-                            key="transcribe_voxcpm_prompt_audio_button",
-                            icon=":material/transcribe:",
-                            help=tr("Transcribe VoxCPM Prompt Audio Help"),
-                            use_container_width=True,
-                            disabled=not bool(effective_prompt_audio),
-                        ):
-                            try:
-                                with st.spinner(tr("Transcribing VoxCPM Prompt Audio")):
-                                    recognized_text = subtitle.transcribe_audio_bytes(
-                                        effective_prompt_audio
-                                    )
-                            except Exception:
-                                logger.exception(
-                                    "failed to transcribe VoxCPM prompt audio"
-                                )
-                                recognized_text = ""
-                            if recognized_text:
-                                st.session_state[VOXCPM_PROMPT_TEXT_SESSION_KEY] = (
-                                    recognized_text
-                                )
-                                st.toast(tr("VoxCPM Prompt Audio Transcribed"))
-                            else:
-                                st.error(tr("VoxCPM Prompt Audio Transcription Failed"))
-                        st.text_area(
-                            tr("VoxCPM Prompt Text"),
-                            key=VOXCPM_PROMPT_TEXT_SESSION_KEY,
-                            help=tr("VoxCPM Prompt Text Help"),
-                            height=100,
-                        )
-                        st.caption(tr("VoxCPM Prompt Transcript Review"))
-                        prompt_error = _get_voxcpm_prompt_validation_error()
-                        if prompt_error:
-                            st.error(
-                                tr("VoxCPM Prompt Invalid").format(
-                                    error=prompt_error
-                                )
-                            )
-                    else:
-                        _clear_voxcpm_prompt_state()
-
-            # Chatterbox API settings section (self-hosted, OpenAI-compatible)
-            if tts_mode_enabled and (
-                selected_tts_server == "chatterbox"
-                or (voice_name and voice.is_chatterbox_voice(voice_name))
-            ):
-                chatterbox_base_url = st.text_input(
-                    tr("Chatterbox Base URL"),
-                    value=config.chatterbox.get("base_url")
-                    or DEFAULT_CHATTERBOX_BASE_URL,
-                    key="chatterbox_base_url_input",
-                    placeholder=tr("Chatterbox Base URL Placeholder"),
-                )
-                _set_runtime_config(
-                    "chatterbox", "base_url", (chatterbox_base_url or "").strip()
-                )
-
-                chatterbox_api_key = st.text_input(
-                    tr("Chatterbox API Key"),
-                    value=config.chatterbox.get("api_key", ""),
-                    type="password",
-                    key="chatterbox_api_key_input",
-                )
-                _set_runtime_config("chatterbox", "api_key", chatterbox_api_key)
-
-                chatterbox_model = st.text_input(
-                    tr("Chatterbox Model"),
-                    value=config.chatterbox.get("model_id") or DEFAULT_CHATTERBOX_MODEL,
-                    key="chatterbox_model_input",
-                )
-                _set_runtime_config(
-                    "chatterbox",
-                    "model_id",
-                    (chatterbox_model or DEFAULT_CHATTERBOX_MODEL).strip(),
-                )
-
-                _saved_chatterbox_voices = (
-                    _parse_chatterbox_voices(config.chatterbox.get("voices"))
-                    or DEFAULT_CHATTERBOX_VOICES
-                )
-                if isinstance(_saved_chatterbox_voices, list):
-                    _saved_chatterbox_voices = ", ".join(_saved_chatterbox_voices)
-                chatterbox_voices = st.text_input(
-                    tr("Chatterbox Voices"),
-                    value=str(_saved_chatterbox_voices or ""),
-                    key="chatterbox_voices_input",
-                    placeholder=tr("Chatterbox Voices Placeholder"),
-                )
-                _set_runtime_config(
-                    "chatterbox",
-                    "voices",
-                    _parse_chatterbox_voices(chatterbox_voices),
-                )
-
-            # Kokoro API settings section (self-hosted, OpenAI-compatible; voices listed from the server when left empty)
-            if tts_mode_enabled and (
-                selected_tts_server == "kokoro"
-                or (voice_name and voice.is_kokoro_voice(voice_name))
-            ):
-                kokoro_base_url = st.text_input(
-                    tr("Kokoro Base URL"),
-                    value=config.kokoro.get("base_url")
-                    or DEFAULT_KOKORO_BASE_URL,
-                    key="kokoro_base_url_input",
-                    placeholder=tr("Kokoro Base URL Placeholder"),
-                )
-                _set_runtime_config(
-                    "kokoro", "base_url", (kokoro_base_url or "").strip()
-                )
-
-                kokoro_api_key = st.text_input(
-                    tr("Kokoro API Key"),
-                    value=config.kokoro.get("api_key", ""),
-                    type="password",
-                    key="kokoro_api_key_input",
-                )
-                _set_runtime_config("kokoro", "api_key", kokoro_api_key)
-
-                kokoro_model = st.text_input(
-                    tr("Kokoro Model"),
-                    value=config.kokoro.get("model_id") or DEFAULT_KOKORO_MODEL,
-                    key="kokoro_model_input",
-                )
-                _set_runtime_config(
-                    "kokoro",
-                    "model_id",
-                    (kokoro_model or DEFAULT_KOKORO_MODEL).strip(),
-                )
-
-                _saved_kokoro_voices = (
-                    _parse_chatterbox_voices(config.kokoro.get("voices"))
-                    or DEFAULT_KOKORO_VOICES
-                )
-                if isinstance(_saved_kokoro_voices, list):
-                    _saved_kokoro_voices = ", ".join(_saved_kokoro_voices)
-                kokoro_voices = st.text_input(
-                    tr("Kokoro Voices"),
-                    value=str(_saved_kokoro_voices or ""),
-                    key="kokoro_voices_input",
-                    placeholder=tr("Kokoro Voices Placeholder"),
-                )
-                _set_runtime_config(
-                    "kokoro",
-                    "voices",
-                    _parse_chatterbox_voices(kokoro_voices),
+                    "voicestudio", "base_url", (voicestudio_base_url or "").strip()
                 )
 
             # 三种模式只渲染当前任务真正需要的控件。自动配音可调音量和语速；
@@ -9039,34 +7899,6 @@ def _render_generation_controls(
             st.error(tr("Video Script and Subject Cannot Both Be Empty"))
             st.stop()
 
-        voxcpm_reference_audio = None
-        voxcpm_prompt_audio = None
-        voxcpm_prompt_text = ""
-        if voice.is_voxcpm_voice(params.voice_name or ""):
-            reference_audio_error = st.session_state.get(
-                VOXCPM_REFERENCE_AUDIO_ERROR_SESSION_KEY
-            )
-            if reference_audio_error:
-                _remove_active_generation_task(task_id)
-                st.error(
-                    tr("VoxCPM Reference Audio Invalid").format(
-                        error=reference_audio_error
-                    )
-                )
-                st.stop()
-            voxcpm_reference_audio = _get_voxcpm_reference_audio()
-            prompt_validation_error = _get_voxcpm_prompt_validation_error()
-            if prompt_validation_error:
-                _remove_active_generation_task(task_id)
-                st.error(
-                    tr("VoxCPM Prompt Invalid").format(
-                        error=prompt_validation_error
-                    )
-                )
-                st.stop()
-            voxcpm_prompt_audio = _get_voxcpm_effective_prompt_audio()
-            voxcpm_prompt_text = _get_voxcpm_prompt_text()
-
         if params.video_source not in [
             "infistar",
             "jalapeno",
@@ -9433,9 +8265,6 @@ def _render_generation_controls(
                 capture_logs=not config.ui.get("hide_log", False),
                 voice_preview=reusable_voice_preview,
                 loomloom_video_request=loomloom_video_request,
-                voxcpm_reference_audio=voxcpm_reference_audio,
-                voxcpm_prompt_audio=voxcpm_prompt_audio,
-                voxcpm_prompt_text=voxcpm_prompt_text,
                 **({"jalapeno_video_endpoint": jalapeno_video_endpoint}
                    if params.video_source == "jalapeno" else {}),
             )

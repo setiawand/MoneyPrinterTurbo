@@ -70,7 +70,7 @@ def settings_app(
         patch.object(chatgpt_oauth, "account_status", return_value=False),
         patch.object(codex_oauth, "request_device_code") as login,
         patch.object(
-            voice, "get_all_azure_voices", return_value=["en-US-JennyNeural-Female"]
+            voice, "get_voicestudio_voices", return_value=["voicestudio:alloy"]
         ),
     ):
         app = AppTest.from_file(str(ROOT / "webui/Main.py"), default_timeout=60)
